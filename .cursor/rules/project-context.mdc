@@ -1,0 +1,10 @@
+---
+description: Load project memory from MASTER_CONTEXT.md and keep it updated after substantive work.
+alwaysApply: true
+---
+
+# Project context
+
+- At the **start** of substantive work in this repo, read **MASTER_CONTEXT.md** at the repository root for brand voice, prior decisions, and API learnings.
+- After **significant** changes (new workflows, verified Arcads behaviors, brand updates), append a short **dated** entry to the Changelog section in **MASTER_CONTEXT.md**.
+- For Arcads HTTP usage, prompts, and polling, follow **`.cursor/skills/arcads-external-api/SKILL.md`** and linked **reference.md**.
