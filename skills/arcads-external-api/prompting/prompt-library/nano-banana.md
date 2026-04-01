@@ -47,6 +47,29 @@ See [reference.md](../../reference.md) for the full schema. Key fields:
 - [ ] State whether the output should be **photoreal**, **illustration**, **product hero**, etc.
 - [ ] Call out **text on image** only if the pipeline supports legible text for your use case.
 - [ ] Use `POST /V2/images/generate` (uppercase V2) — not `/v2/`.
+- [ ] After `status: generated`, run **post-generation QA** (see below) before treating the image as final.
+
+### Post-generation QA (mandatory)
+
+After downloading or viewing the result, check for:
+
+- Extra or missing **hands** or **fingers**; wrong finger count; fused or blurred digits
+- Wrong number of **limbs**; duplicated or missing arms/legs; impossible **joints** or poses
+- **Face:** duplicate or merged features, asymmetry beyond natural range, distorted eyes or teeth
+- **Objects:** merged geometry, floating items, melted product edges (product shots)
+- **Artifacts:** obvious seams, texture soup, stray body parts at frame edges
+
+If anything looks off, follow **Regeneration loop** — do not pass a defective still to the user as the only option without at least one retry (unless the user explicitly waives QA).
+
+### Regeneration loop
+
+1. **Inspect** the image from the asset `url` (or local download).
+2. If **defective:** compose a **new prompt** that names the fix (e.g. "exactly two hands visible, five fingers each," "single coherent face," "product label sharp and readable"). Keep the rest of the creative intent; add corrective constraints rather than resending the exact same JSON.
+3. Call `POST /V2/images/generate` again with the same `model`, `aspectRatio`, `productId`, `projectId`, and reference inputs as before unless you are intentionally changing them.
+4. **Cap:** at most **2** regeneration attempts after the first image (**3** total generations per deliverable). After that, describe remaining issues, list asset URLs, and ask the user how to proceed.
+5. **Credits:** each generation bills separately — note cumulative `creditsCharged` when reporting. QA retries use the [QA-fix exception](../../SKILL.md) (no second pre-confirmation, but still billed).
+
+Full agent steps: [SKILL.md — Generated image QA](../../SKILL.md#generated-image-qa-mandatory).
 
 ## Template
 

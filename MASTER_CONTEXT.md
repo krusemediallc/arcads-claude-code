@@ -72,6 +72,11 @@ _Edit or replace with your real brand blocks (see `skills/arcads-external-api/pr
 - **Why:** Previously blocked — Arcads had no confirmed dedicated image route for Nano Banana. The scene endpoint workaround (video + thumbnail extraction) was slow, expensive, and indirect. The dedicated image endpoint enables the clean two-step flow: generate still → approve → generate video.
 - **Model defaults (same day):** Default `model` to **`nano-banana-2`**; optional **Nano Banana Pro** = **`nano-banana`** (no `nano-banana-pro` in the API enum). Documented in `SKILL.md`, `reference.md`, `nano-banana.md`, influencer/product workflows.
 
+### 2026-04-01 — Post-generation image QA and auto-regenerate
+
+- **Decision:** Agents must **visually review** still images after generation (hands, fingers, limbs, face, merged objects, obvious artifacts). If defective, **regenerate** with a refined prompt — up to **2** retries per deliverable (3 attempts total). **Exception:** QA-fix retries skip a second credit *confirmation* but still bill credits; summarize usage afterward. User-facing approval (influencer/product workflows) happens **after** internal QA completes.
+- **Change:** `SKILL.md` (new section + execution checklist + credit exception), `nano-banana.md` (QA + regeneration loop), `influencer-recreation.md`, `product-showcase.md`; skill synced to `.cursor`/`.claude`.
+
 ### YYYY-MM-DD — Template entry
 
 - **Decision:**

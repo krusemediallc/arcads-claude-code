@@ -101,14 +101,15 @@ Once the user approves the prompt:
    - `aspectRatio` — match the reference image or user preference
    - `refImageAsBase64` — the original image (improves consistency)
 5. Poll `GET /v1/assets/{id}` until `generated`.
-6. Assign to session project via `POST /v1/assets/add-to-project`.
-7. Retrieve the image URL from the asset response and **show it to the user**.
+6. **Post-generation QA:** Visually inspect the still (see [nano-banana.md](nano-banana.md) — Post-generation QA and Regeneration loop). If you see defects (extra fingers, bad hands, etc.), regenerate with a refined prompt — up to **2** retries after the first attempt. **Do not show the user a still as “the result” until QA passes or retries are exhausted** (if still bad after retries, explain and show attempts).
+7. Assign **all** generated assets to the session project via `POST /v1/assets/add-to-project` (including failed QA attempts if you keep those asset IDs).
+8. Retrieve the image URL for the **QA-passed** (or best-effort) still and **show it to the user** next to the original reference.
 
 ### Step 5: User approves the still image
 
-- Show the recreation result alongside the original reference.
+- Show the recreation result alongside the original reference — **after** internal QA and any auto-retries above.
 - **Wait for explicit user approval** before proceeding to video.
-- If the user is not satisfied, iterate on the prompt and regenerate.
+- If the user is not satisfied, iterate on the prompt and regenerate (this is separate from automatic QA retries; follow credit confirmation rules in SKILL.md for new user-directed generations).
 
 ### Step 6: Generate video from approved image
 

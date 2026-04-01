@@ -110,6 +110,8 @@ Proceed? (yes/no)
 
 Always wait for confirmation before firing. If the user has a credit balance visible in `MASTER_CONTEXT.md`, warn them if the total would exceed it. If credit costs have not been configured yet, ask the user to provide them before the first generation.
 
+**Exception — QA-fix retries (still images only):** After the user has confirmed the initial batch, **automatic regeneration to fix visible defects** (see [Generated image QA](#generated-image-qa-mandatory) below) does **not** require asking again for credit confirmation. Each retry is still billed — note the extra `creditsCharged` when summarizing the session.
+
 ## Generation count: multiple variations per prompt
 
 Before firing any generation call, **ask the user how many variations** they want for this prompt. Default is 1 if they don't specify.
@@ -204,6 +206,22 @@ Before sending any reference image, start frame, or base64 image to the API:
 
 Several Arcads endpoints (notably `POST /v1/b-roll`) reject images below a minimum resolution with `422 — The provided image is too small`. Auto-upscaling prevents this silently so the user never hits the error.
 
+## Generated image QA (mandatory)
+
+Applies to **still images** from Arcads, especially `POST /V2/images/generate` (Nano Banana and other image models). After each image asset reaches `status: generated`, **visually inspect the output** (download or open the image URL / use the agent's image-reading capability).
+
+**Look for:** extra or missing hands or fingers; wrong limb count; distorted, duplicated, or merged facial features; melted or fused objects; impossible anatomy; stray limbs; obvious texture or boundary artifacts; unreadable or garbled text if text was requested.
+
+**If something looks wrong:** Do **not** hand off the bad frame as the final deliverable without trying again. **Regenerate** with a **revised prompt** that explicitly corrects the issue (e.g. "exactly two hands, five fingers each, anatomically correct arms," "single face, no duplicate features"). Do **not** resend the identical payload and expect a different outcome.
+
+**Retry cap:** Up to **2 regeneration attempts per originally requested image** (3 attempts total including the first). If defects remain after the cap, stop auto-retries, tell the user what still looks wrong, show the best attempt or URLs for all attempts, and ask how they want to proceed.
+
+**Credits:** Each attempt is a separate generation and is billed. Summarize total credits used for that image after the QA loop ends. See **Exception — QA-fix retries** under [Credit cost estimation](#credit-cost-estimation-mandatory--show-before-generating).
+
+**Video (optional quick check):** Before spending heavily on downstream video, you may spot-check **scene/b-roll thumbnails** or extracted frames for the same kinds of defects; scope is lighter than for hero stills.
+
+Details and checklist items: [prompting/prompt-library/nano-banana.md](prompting/prompt-library/nano-banana.md).
+
 ## Execution checklist (agent)
 
 1. **Session folder:** Ensure today's dated folder + project exist (see above).
@@ -216,9 +234,10 @@ Several Arcads endpoints (notably `POST /v1/b-roll`) reject images below a minim
 8. Compose JSON per OpenAPI / [reference.md](reference.md). Include `projectId` when the DTO supports it. Set `duration` based on script length for models that require it. For Nano Banana images, use `POST /V2/images/generate` (uppercase V2) with `model` set per the Nano Banana section (`nano-banana-2` unless the user chose Pro).
 9. `POST` the correct endpoint **N times** (once per requested variation) with the same payload. Fire in parallel where possible.
 10. **Poll:** `GET /v1/videos/{videoId}` for video IDs; `GET /v1/assets/{id}` for asset IDs (including Nano Banana images) until `status` is `generated` or `failed` (see [reference.md](reference.md)). Poll all asset IDs concurrently.
-11. **Assign ALL assets to session project:** After generation, check each asset's `projects` array. If it does not include the session `projectId`, call `POST /v1/assets/add-to-project`. This applies to **every** generated asset — including **intermediate assets** like Nano Banana stills used as starting frames for subsequent video generations. All assets from the session must end up in the same dated project folder.
-12. **Present results:** Return **watch URLs**, image URLs, or download URLs. If multiple variations, present as a numbered list for comparison. Explain `failed` with moderation/validation hints if `422` occurred. For Nano Banana images used as starting frames, show the image and **wait for user approval** before proceeding to video generation.
-13. **Stitch if split:** If the script was split into segments, offer to stitch the final videos together with `ffmpeg` and provide both the stitched file and individual segments.
+11. **Generated image QA:** For each **still image** produced in this turn (e.g. `POST /V2/images/generate`), follow [Generated image QA](#generated-image-qa-mandatory): inspect the image; if defective, regenerate with a refined prompt until pass or **2 retries** are exhausted. Skip this step for video-only outputs with no still to review.
+12. **Assign ALL assets to session project:** After generation (and QA retries), check each asset's `projects` array. If it does not include the session `projectId`, call `POST /v1/assets/add-to-project`. This applies to **every** generated asset — including **failed QA attempts** and **intermediate assets** like Nano Banana stills used as starting frames for subsequent video generations. All assets from the session must end up in the same dated project folder.
+13. **Present results:** Return **watch URLs**, image URLs, or download URLs for **QA-passed** stills (or the best attempt after max retries, with a clear note). If multiple variations, present as a numbered list for comparison. Explain `failed` with moderation/validation hints if `422` occurred. For Nano Banana images used as starting frames, show the image and **wait for user approval** before proceeding to video generation.
+14. **Stitch if split:** If the script was split into segments, offer to stitch the final videos together with `ffmpeg` and provide both the stitched file and individual segments.
 
 ## Errors (user-facing)
 

@@ -60,14 +60,15 @@ Follow the template below. The prompt should describe:
    - `aspectRatio` — match the video intent (`9:16` for reels, `16:9` for landscape, `1:1` for square)
    - `refImageAsBase64` — the product photo
 3. Poll `GET /v1/assets/{id}` until `generated`.
-4. Assign to session project via `POST /v1/assets/add-to-project`.
-5. Show the generated image to the user.
+4. **Post-generation QA:** Inspect the still per [nano-banana.md](nano-banana.md) (hands, product edges, merged geometry). **Regenerate** with a refined prompt if needed — up to **2** retries after the first attempt. **Only then** treat the still as ready to show.
+5. Assign **all** relevant assets to the session project via `POST /v1/assets/add-to-project`.
+6. Show the **QA-passed** (or best-effort after max retries) image to the user.
 
 ### 4. Get user approval
 
-- Show the generated still to the user.
+- Show the generated still to the user — **after** internal QA and auto-retries in step 3–4.
 - **Wait for explicit approval** before proceeding to video.
-- If the product looks wrong (distorted label, wrong color, unnatural grip), iterate on the prompt and regenerate.
+- If the user wants a different creative direction (not just defect fixes), iterate on the prompt and regenerate per SKILL.md credit rules.
 
 ### 5. Generate video from approved still
 
