@@ -1,0 +1,9 @@
+# Ignore all image files (keep folder structure + README)
+*.jpg
+*.jpeg
+*.png
+*.webp
+*.gif
+*.bmp
+*.tiff
+*.heic

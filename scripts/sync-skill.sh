@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Copies the canonical skill from skills/arcads-external-api to Claude Code and Cursor paths.
+# Called automatically by scripts/setup.sh. Run manually after editing any file in skills/.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SRC="$ROOT/skills/arcads-external-api"

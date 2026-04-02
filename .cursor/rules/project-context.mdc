@@ -5,6 +5,8 @@ alwaysApply: true
 
 # Project context
 
-- At the **start** of substantive work in this repo, read **MASTER_CONTEXT.md** at the repository root for brand voice, prior decisions, and API learnings.
+- If `.env` or `MASTER_CONTEXT.md` do not exist, tell the user to run `./scripts/setup.sh`.
+- At the **start** of substantive work in this repo, read **MASTER_CONTEXT.md** at the repository root for brand voice, credit costs, default product, and API learnings.
+- If `MASTER_CONTEXT.md` has empty fields (credit costs, default product), offer to populate them — ask the user and write the values back.
 - After **significant** changes (new workflows, verified Arcads behaviors, brand updates), append a short **dated** entry to the Changelog section in **MASTER_CONTEXT.md**.
 - For Arcads HTTP usage, prompts, and polling, follow **`.cursor/skills/arcads-external-api/SKILL.md`** and linked **reference.md**.

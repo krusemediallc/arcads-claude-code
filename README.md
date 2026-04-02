@@ -1,37 +1,109 @@
-# Arcads external API — agent skill pack
+# Arcads AI Video — Agent Skill Pack
 
-Portable **Agent Skills** ([agentskills.io](https://agentskills.io/)) for the [Arcads external API](https://external-api.arcads.ai/docs): create and track AI creative assets (video-first; image-related asset types exist in the API), with a **prompting guide** and **per-model prompt library** (Sora 2, Veo 3.1, Kling 3.0, Nano Banana).
+Create AI marketing videos and images using your [Arcads](https://arcads.ai) account, powered by AI agents in **Claude Code** or **Cursor**. Supports Sora 2, Veo 3.1, Kling 3.0, and Nano Banana.
 
-Works in **Claude Code** (`.claude/skills/`), **Cursor** (`.cursor/skills/`), and any tool that loads the same skill folder. Other assistants (e.g. Manus) can follow [AGENTS.md](AGENTS.md) and point the model at `MASTER_CONTEXT.md` + the skill path.
+## Get started (5 minutes)
 
-## Quick start
+### 1. Clone this repo
 
-1. Clone this repo.
-2. Copy `.env.example` to `.env` and add your Arcads API key (see **API key** below).
-3. Optional: `chmod +x scripts/*.sh && ./scripts/check-arcads-env.sh` to verify auth (requires a valid key).
-4. Open the project in **Cursor** or **Claude Code** — the skill **`arcads-external-api`** is preinstalled under both skill directories.
+```bash
+git clone <repo-url>
+cd arcads-agent-skills
+```
 
-Canonical skill source lives in **`skills/arcads-external-api/`**. After editing it, run:
+### 2. Run setup
+
+```bash
+./scripts/setup.sh
+```
+
+This will:
+- Ask for your **Arcads API key** (find it at [app.arcads.ai/settings/api](https://app.arcads.ai/settings/api))
+- Save it securely in `.env` (never committed to git)
+- Verify your connection to Arcads
+- Create your personal `MASTER_CONTEXT.md` workspace file
+
+### 3. Open in your AI editor
+
+**Claude Code:** Open the folder. The agent loads the Arcads skill automatically.
+
+**Cursor:** Open the folder. The skill is at `.cursor/skills/arcads-external-api/`.
+
+### 4. Start creating
+
+Ask the agent things like:
+- "Generate a 10-second UGC-style video for my product"
+- "Create a Veo 3.1 video of someone unboxing a phone"
+- "Recreate this influencer's look from a reference photo"
+- "Make a Nano Banana product hero image"
+
+The agent handles API calls, polling, prompt engineering, and file organization.
+
+## What's in the box
+
+| Path | What it does |
+|------|-------------|
+| `skills/arcads-external-api/` | The skill: API reference, prompting guide, per-model prompt library |
+| `MASTER_CONTEXT.template.md` | Template for your workspace context (credit costs, brand voice, learnings) |
+| `MASTER_CONTEXT.md` | Your personalized copy (created by setup, not committed to git) |
+| `.env` | Your API key (created by setup, never committed) |
+| `scripts/setup.sh` | One-time setup |
+| `scripts/sync-skill.sh` | Copies skill edits to `.claude/` and `.cursor/` directories |
+| `scripts/check-arcads-env.sh` | Tests API connectivity |
+| `references/` | Drop reference images here (influencers, products, aesthetics) — gitignored |
+
+## Your API key
+
+Your key authenticates with the Arcads API. During setup you paste it once and the agent uses it from `.env` automatically. You never need to paste it into chat.
+
+Find your key: **[Arcads Dashboard > Settings > API](https://app.arcads.ai/settings/api)**
+
+## Project memory
+
+`MASTER_CONTEXT.md` is your workspace's living memory. The agent reads it at the start of every session and writes learnings back. It stores:
+
+- **Default product** — auto-populated on first use so you're never asked "which product?" again
+- **Credit costs** — you fill in once (or the agent asks), then every session has them
+- **Brand voice** — optional tone, audience, and word preferences
+- **API learnings** — universal Arcads quirks that help the agent work better
+- **Changelog** — dated notes from each session
+
+## Supported models
+
+| Model | Type | Best for |
+|-------|------|----------|
+| **Sora 2** | Video | Longer videos (up to 20s), good dialogue, remix existing assets |
+| **Veo 3.1** | Video | High-quality ~8s clips, start-frame consistency, 4K |
+| **Kling 3.0** | Video | B-roll and scene generation |
+| **Nano Banana** | Image | Still frames, product shots, influencer recreation stills |
+
+## Reference images
+
+Drop images into the `references/` folder and the agent will use them automatically:
+
+- **`references/influencers/`** — Photos of people to recreate as AI-generated content
+- **`references/products/`** — Product photos for showcase videos and hero images
+- **`references/aesthetics/`** — Mood boards, lighting references, style inspiration
+
+Images stay local — the folder contents are gitignored.
+
+## Editing the skill
+
+The canonical skill source lives in `skills/arcads-external-api/`. After editing any file there, run:
 
 ```bash
 ./scripts/sync-skill.sh
 ```
 
-to copy changes to `.claude/skills/arcads-external-api/` and `.cursor/skills/arcads-external-api/`.
+This copies your changes to `.claude/skills/` and `.cursor/skills/` (which are gitignored — they're generated copies).
 
-## API key (marketer-friendly)
+## Security
 
-**Recommended:** Put the key only in **`.env`** (create from `.env.example`). Open `.env` in the editor, paste the key, save. The AI agent does not need the secret in chat.
+- `.env` is gitignored — never committed
+- `MASTER_CONTEXT.md` is gitignored — contains your product IDs and workspace data
+- Never paste API keys in GitHub issues or public chats
 
-**Alternative:** Paste the key in chat and ask the agent to write `.env` for you. That is easy but **chat history may retain the secret**—rotate the key in Arcads if the conversation could be shared.
-
-Authentication uses **HTTP Basic** with the API key as the **username** and an **empty password** (see the skill’s [reference.md](skills/arcads-external-api/reference.md)).
-
-## Project memory
-
-- **`MASTER_CONTEXT.md`** — living log: brand, decisions, learnings. Agents are instructed to read it at session start and append dated notes after substantive work ([CLAUDE.md](CLAUDE.md), [AGENTS.md](AGENTS.md), [`.cursor/rules/project-context.mdc`](.cursor/rules/project-context.mdc)).
-
-## Vendor prompting guides (primary models)
+## Vendor prompting guides
 
 | Model | Guide |
 |-------|--------|
@@ -40,21 +112,10 @@ Authentication uses **HTTP Basic** with the API key as the **username** and an *
 | Kling 3.0 | [Kling — user guide](https://kling.ai/quickstart/klingai-video-3-model-user-guide) |
 | Nano Banana | [Google Cloud — Nano Banana](https://cloud.google.com/blog/products/ai-machine-learning/ultimate-prompting-guide-for-nano-banana) |
 
-The repo links these from `skills/arcads-external-api/prompting/prompt-library/` and adds short checklists—not full copies of vendor docs.
+## API docs
 
-## Security
+[Arcads Swagger UI](https://external-api.arcads.ai/docs)
 
-- Never commit **`.env`** (gitignored).
-- Do not paste API keys into GitHub issues or public chats unnecessarily.
+## Other AI assistants (Manus, Copilot, etc.)
 
-## Docs
-
-- Arcads Swagger: [https://external-api.arcads.ai/docs](https://external-api.arcads.ai/docs)
-
-## Manus (or other assistants)
-
-There is no universal standard for all tools. Point your assistant at:
-
-- [AGENTS.md](AGENTS.md)
-- [MASTER_CONTEXT.md](MASTER_CONTEXT.md)
-- `skills/arcads-external-api/SKILL.md` (or the synced copy under `.cursor/skills/` / `.claude/skills/`)
+Point your assistant at [AGENTS.md](AGENTS.md) and `MASTER_CONTEXT.md` + the skill path. See [AGENTS.md](AGENTS.md) for details.

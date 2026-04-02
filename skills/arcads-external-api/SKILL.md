@@ -57,7 +57,7 @@ Prefer the **shortest** path: if the user only needs Sora2 or Veo31, do not crea
 At the **start of each session** that will generate assets, create a folder and project for the day so everything is organized in the Arcads dashboard:
 
 1. Get today's date as `YYYY-MM-DD`.
-2. `GET /v1/products` → pick the target product (ask user if multiple; default to whichever `MASTER_CONTEXT.md` specifies).
+2. `GET /v1/products` → pick the target product (default to whichever `MASTER_CONTEXT.md` specifies under "My workspace"). If no default is set: if only one product exists, auto-populate `MASTER_CONTEXT.md` with its ID and name; if multiple, ask the user to pick and save their choice to `MASTER_CONTEXT.md`.
 3. Check existing folders (`GET /v1/products/{productId}/folders`) — if **"Arcads API - {today}"** already exists, reuse it. Otherwise:
    - `POST /v1/folders` with `{"productId": "...", "name": "Arcads API - YYYY-MM-DD"}`.
    - `POST /v1/projects` with `{"productId": "...", "folderId": "...", "name": "Arcads API - YYYY-MM-DD"}`.
@@ -71,23 +71,9 @@ Before firing **any** generation calls, calculate and present the total credit c
 
 ### Credit cost table
 
-Check `MASTER_CONTEXT.md` for the **user-configured credit costs**. If no costs are set there, **ask the user** for their per-model credit pricing before estimating. Do NOT guess or use placeholder values.
+Check `MASTER_CONTEXT.md` → **Credit costs** table. If the table is empty, ask the user for their per-model credit pricing and **write the values into `MASTER_CONTEXT.md`** so future sessions have them. Do NOT guess or use placeholder values.
 
 The Arcads API does not expose credit/billing endpoints. Costs must be provided by the user.
-
-```
-<!-- Example format (user fills in MASTER_CONTEXT.md): -->
-| Model | Credits per generation |
-|-------|----------------------|
-| Veo 3.1 | ? |
-| Sora 2 | ? |
-| Sora 2 Pro | ? |
-| Kling 3.0 (scene) | ? |
-| Kling 3.0 (b-roll) | ? |
-| Nano Banana 2 (image, `nano-banana-2`) | ? |
-| Nano Banana Pro (image, `nano-banana`) | ? |
-| Nano Banana (scene) | ? |
-```
 
 ### How to calculate
 
@@ -230,7 +216,7 @@ Details and checklist items: [prompting/prompt-library/nano-banana.md](prompting
 4. **Nano Banana image model:** For `POST /V2/images/generate`, confirm Nano Banana 2 (default) vs Nano Banana Pro (`nano-banana`) per the section above. Skip if not an image call.
 5. **Ask for generation count:** Ask how many variations the user wants for this prompt. Default to 1.
 6. **Show credit cost and get confirmation:** Calculate total credits using the cost table above. Present the breakdown to the user. **Do NOT proceed until they confirm.**
-7. **Pre-process images:** If any reference / start-frame image is provided, run the auto-upscale check. For Veo 3.1, determine whether to use `startFrame` or `referenceImages` (see section above — default to `startFrame` for person photos).
+7. **Check `references/` folder:** Before composing the prompt, check the repo-root `references/` folder for relevant images: `references/influencers/` for person recreation, `references/products/` for product showcase, `references/aesthetics/` for style/mood. If the user hasn't provided an image but a relevant one exists in `references/`, offer to use it. Auto-upscale any reference image if needed. For Veo 3.1, determine whether to use `startFrame` or `referenceImages` (see section above — default to `startFrame` for person photos).
 8. Compose JSON per OpenAPI / [reference.md](reference.md). Include `projectId` when the DTO supports it. Set `duration` based on script length for models that require it. For Nano Banana images, use `POST /V2/images/generate` (uppercase V2) with `model` set per the Nano Banana section (`nano-banana-2` unless the user chose Pro).
 9. `POST` the correct endpoint **N times** (once per requested variation) with the same payload. Fire in parallel where possible.
 10. **Poll:** `GET /v1/videos/{videoId}` for video IDs; `GET /v1/assets/{id}` for asset IDs (including Nano Banana images) until `status` is `generated` or `failed` (see [reference.md](reference.md)). Poll all asset IDs concurrently.
