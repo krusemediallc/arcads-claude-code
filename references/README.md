@@ -31,16 +31,16 @@ Descriptors should cover these categories in order:
 #### File naming convention (inside each influencer folder)
 
 ```
-01-hero-front.png      ← the approved anchor image (full body front)
-02-3q-left.png
-03-3q-right.png
-04-profile-left.png
-05-profile-right.png
-06-face-closeup.png
-07-back-shoulder.png
-08-medium-portrait.png
-09-full-body-3q.png
-10-above-angle.png
+01-hero-front.jpg      ← the approved anchor image (full body front)
+02-3q-left.jpg
+03-3q-right.jpg
+04-profile-left.jpg
+05-profile-right.jpg
+06-face-closeup.jpg
+07-back-shoulder.jpg
+08-medium-portrait.jpg
+09-full-body-3q.jpg
+10-above-angle.jpg
 ```
 
 The agent uses `01-hero-front.png` as the primary reference and can load all 10 as `referenceImages` for maximum consistency.
@@ -60,9 +60,12 @@ iPhone selfie-style UGC — raw, unpolished, authentic-looking frame grabs. Drop
 #### Adding new styles
 Create a new subfolder (e.g., `aesthetics/cinematic/`, `aesthetics/studio/`) and populate with 3-5 reference images. The agent will ask which style to use when generating.
 
+### `examples/ugc-stills/`
+5 example UGC product selfie outputs showing the target quality — character + product + scene with skin realism and camera imperfections baked in. Use these as a visual reference for what the UGC pipeline produces.
+
 ## Supported formats
 
-JPEG, PNG, WebP. The agent auto-converts and upscales images below 1024px before sending to the API.
+JPEG, PNG, WebP. Shipped images are JPEG 85% for smaller repo size. The agent auto-converts and upscales images below 1024px before sending to the API.
 
 ## Privacy
 

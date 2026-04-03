@@ -6,7 +6,7 @@
 
 | Input | Source | Role in `referenceImages` |
 |-------|--------|---------------------------|
-| **Character hero** | `references/influencers/{name}/01-hero-front.png` | Identity — face, hair, build, skin |
+| **Character hero** | `references/influencers/{name}/01-hero-front.jpg` | Identity — face, hair, build, skin |
 | **Product photo** | `references/products/{product}.png` | What they're holding/using |
 | **Style references** (2-4) | `references/aesthetics/{style}/` | Visual vibe — lighting, framing, quality |
 
@@ -104,7 +104,7 @@ should feel raw, unpolished, and authentically amateur.
 
 ### Step 1: Gather inputs
 
-1. **Character:** Ask which influencer (by name). Load their `01-hero-front.png`.
+1. **Character:** Ask which influencer (by name). Load their `01-hero-front.jpg`.
 2. **Product:** Ask which product or check `references/products/`. If multiple, ask user to pick.
 3. **Style:** Default to `references/aesthetics/ugc-selfie/` for UGC. If other style folders exist, ask user which vibe. Load 3 images from the chosen style folder (pick the most varied ones if more than 3 exist).
 4. **Scene:** Ask for the scene/setting (bedroom, car, kitchen, outdoors, etc.) and outfit. If the user doesn't specify, pick a natural casual setting.

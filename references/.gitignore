@@ -1,14 +1,16 @@
-# Ignore all image and video files (keep folder structure + README)
-*.jpg
-*.jpeg
-*.png
-*.webp
-*.gif
-*.bmp
-*.tiff
-*.heic
+# Ignore test/working output (large, regenerable)
+test-ugc-output/
+test-video-output/
+
+# Ignore video files everywhere
 *.mp4
 *.mov
 *.mkv
 *.avi
 *.webm
+
+# Ignore raw PNGs (shipped images are JPEG)
+*.png
+*.bmp
+*.tiff
+*.heic

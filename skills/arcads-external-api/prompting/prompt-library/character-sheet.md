@@ -81,16 +81,16 @@ Once the hero is approved:
 
 | # | File name | Angle | Prompt prefix | Pose/lighting notes |
 |---|-----------|-------|---------------|---------------------|
-| 1 | `01-hero-front.png` | Full body front (hero) | `Full body front view, head to toe.` | Direct eye contact, relaxed stance, weight on one hip, full outfit visible, soft even lighting from both sides |
-| 2 | `02-3q-left.png` | 3/4 left | `Three-quarter view from the left.` | Angled 45° to camera-left, looking toward lens, soft directional light from camera-right |
-| 3 | `03-3q-right.png` | 3/4 right | `Three-quarter view from the right.` | Angled 45° to camera-right, looking toward lens, soft directional light from camera-left |
-| 4 | `04-profile-left.png` | Profile left | `Left profile view.` | Full side profile facing camera-left, hair falls naturally, soft rim light from behind |
-| 5 | `05-profile-right.png` | Profile right | `Right profile view.` | Full side profile facing camera-right, hair falls naturally, soft rim light from behind |
-| 6 | `06-face-closeup.png` | Face close-up | `Face close-up, tight crop.` | Forehead to chin, hair down and loose, every detail visible, soft beauty lighting, catchlights in both eyes |
-| 7 | `07-back-shoulder.png` | Back/over shoulder | `Back view, looking over her/his shoulder.` | Faces away, looking back over right shoulder, playful glance, hair visible from behind |
-| 8 | `08-medium-portrait.png` | Medium portrait | `Front-facing medium portrait, waist up.` | Waist-up framing, direct eye contact, warm expression, soft even lighting |
-| 9 | `09-full-body-3q.png` | Full body 3/4 | `Full body three-quarter view.` | Full length, angled 45° to camera-left, walking toward camera, same full outfit |
-| 10 | `10-above-angle.png` | Above angle | `Slightly above angle, looking up at camera.` | Camera positioned slightly above, chin tilted up, bright smile, soft overhead lighting |
+| 1 | `01-hero-front.jpg` | Full body front (hero) | `Full body front view, head to toe.` | Direct eye contact, relaxed stance, weight on one hip, full outfit visible, soft even lighting from both sides |
+| 2 | `02-3q-left.jpg` | 3/4 left | `Three-quarter view from the left.` | Angled 45° to camera-left, looking toward lens, soft directional light from camera-right |
+| 3 | `03-3q-right.jpg` | 3/4 right | `Three-quarter view from the right.` | Angled 45° to camera-right, looking toward lens, soft directional light from camera-left |
+| 4 | `04-profile-left.jpg` | Profile left | `Left profile view.` | Full side profile facing camera-left, hair falls naturally, soft rim light from behind |
+| 5 | `05-profile-right.jpg` | Profile right | `Right profile view.` | Full side profile facing camera-right, hair falls naturally, soft rim light from behind |
+| 6 | `06-face-closeup.jpg` | Face close-up | `Face close-up, tight crop.` | Forehead to chin, hair down and loose, every detail visible, soft beauty lighting, catchlights in both eyes |
+| 7 | `07-back-shoulder.jpg` | Back/over shoulder | `Back view, looking over her/his shoulder.` | Faces away, looking back over right shoulder, playful glance, hair visible from behind |
+| 8 | `08-medium-portrait.jpg` | Medium portrait | `Front-facing medium portrait, waist up.` | Waist-up framing, direct eye contact, warm expression, soft even lighting |
+| 9 | `09-full-body-3q.jpg` | Full body 3/4 | `Full body three-quarter view.` | Full length, angled 45° to camera-left, walking toward camera, same full outfit |
+| 10 | `10-above-angle.jpg` | Above angle | `Slightly above angle, looking up at camera.` | Camera positioned slightly above, chin tilted up, bright smile, soft overhead lighting |
 
 ## Step 5: QA all images
 
@@ -132,19 +132,19 @@ references/influencers/{name}-{hair_color}-{hair_style}-{feature}-{eye_color}-{s
 Files are zero-padded and named by angle:
 
 ```
-01-hero-front.png
-02-3q-left.png
-03-3q-right.png
-04-profile-left.png
-05-profile-right.png
-06-face-closeup.png
-07-back-shoulder.png
-08-medium-portrait.png
-09-full-body-3q.png
-10-above-angle.png
+01-hero-front.jpg
+02-3q-left.jpg
+03-3q-right.jpg
+04-profile-left.jpg
+05-profile-right.jpg
+06-face-closeup.jpg
+07-back-shoulder.jpg
+08-medium-portrait.jpg
+09-full-body-3q.jpg
+10-above-angle.jpg
 ```
 
-`01-hero-front.png` is always the approved anchor image. The agent should use this as the primary `referenceImages` entry when generating new content with this influencer.
+`01-hero-front.jpg` is always the approved anchor image. The agent should use this as the primary `referenceImages` entry when generating new content with this influencer.
 
 ### After saving
 
@@ -173,7 +173,7 @@ Once a character sheet exists in `references/influencers/`, it can be used as in
 - **Video generation** — upload the hero (or any angle) as `startFrame` for Veo 3.1 or `refImageAsBase64` for Sora 2
 - **UGC selfie-style** ([ugc-selfie-style.md](ugc-selfie-style.md)) — use character sheet images as references, combine with UGC prompting formulas
 
-When referencing an existing character, load `01-hero-front.png` as the primary reference. For maximum consistency, load multiple angles from the folder as additional `referenceImages` (up to 14 supported by Nano Banana).
+When referencing an existing character, load `01-hero-front.jpg` as the primary reference. For maximum consistency, load multiple angles from the folder as additional `referenceImages` (up to 14 supported by Nano Banana).
 
 ## Example
 
