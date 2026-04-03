@@ -8,6 +8,7 @@
 - [ ] Describe scene, action, and **how the shot evolves** over time (first frame → later beats).
 - [ ] Specify **style** (film stock, animation, documentary, etc.) if it matters.
 - [ ] If using **reference images** or **start/end frames**, follow the API rules in [reference.md](../../reference.md) (mutual exclusions, presigned upload path).
+- [ ] **ALWAYS** end the prompt with `"No subtitles, no captions, no text overlays."` — Veo 3.1 sometimes burns subtitles into the video if not explicitly excluded.
 
 ## Template
 

@@ -31,14 +31,14 @@ Descriptors should cover these categories in order:
 #### File naming convention (inside each influencer folder)
 
 ```
-01-hero-front.png      ← the approved anchor image
+01-hero-front.png      ← the approved anchor image (full body front)
 02-3q-left.png
 03-3q-right.png
 04-profile-left.png
 05-profile-right.png
 06-face-closeup.png
 07-back-shoulder.png
-08-full-body-front.png
+08-medium-portrait.png
 09-full-body-3q.png
 10-above-angle.png
 ```
@@ -52,9 +52,13 @@ Product photos for showcase videos and product hero images.
 - Tip: clean backgrounds (white/neutral) produce the best results
 
 ### `aesthetics/`
-Mood boards, lighting references, color palettes, style inspiration.
-- The agent uses these as `referenceImages` (style/mood, not literal reproduction)
-- Screenshots from ads you like, color swatches, composition examples
+Style references organized into subfolders by vibe. The agent loads 3 images from the chosen style folder as `referenceImages` to influence generation style.
+
+#### `aesthetics/ugc-selfie/`
+iPhone selfie-style UGC — raw, unpolished, authentic-looking frame grabs. Drop 3-5 reference images showing the target aesthetic: front-camera selfies, slightly grainy, imperfect lighting, casual environments.
+
+#### Adding new styles
+Create a new subfolder (e.g., `aesthetics/cinematic/`, `aesthetics/studio/`) and populate with 3-5 reference images. The agent will ask which style to use when generating.
 
 ## Supported formats
 

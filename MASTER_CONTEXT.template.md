@@ -22,16 +22,16 @@
 
 _Fill in your plan's credit costs below. The agent references this table before every generation. If left blank, the agent will ask you once and can fill them in._
 
-| Model | Credits per generation |
-|-------|----------------------|
-| Veo 3.1 | |
-| Sora 2 | |
-| Sora 2 Pro | |
-| Kling 3.0 (scene) | |
-| Kling 3.0 (b-roll) | |
-| Nano Banana 2 (image, `nano-banana-2`) | |
-| Nano Banana Pro (image, `nano-banana`) | |
-| Nano Banana (scene) | |
+| Model | Credits per generation | Notes |
+|-------|----------------------|-------|
+| Veo 3.1 | 1 | Same cost at 720p, 1080p, and 4K |
+| Sora 2 | _(fill in)_ | |
+| Sora 2 Pro | _(fill in)_ | Auto-selected when using `refImageAsBase64` |
+| Kling 3.0 (scene) | _(fill in)_ | |
+| Kling 3.0 (b-roll) | _(fill in)_ | |
+| Nano Banana 2 (image, `nano-banana-2`) | 0.03 | ~35s generation time |
+| Nano Banana Pro (image, `nano-banana`) | _(fill in)_ | |
+| Nano Banana (scene) | _(fill in)_ | |
 
 ## Brand (optional)
 
@@ -84,6 +84,15 @@ These are confirmed behaviors of the Arcads external API. They apply to all work
 - `startFrame` vs `referenceImages` are **mutually exclusive**. `startFrame` = video animates from this exact image. `referenceImages` = style/mood inspiration only.
 - Default: always use `startFrame` when user provides a single person photo.
 - No `duration` field — auto-determines length (~8s typical).
+- **Default resolution: `720p`** — 4K and 1080p show no visible quality difference for UGC content but produce 3-8x larger files.
+- **ALWAYS include** `"No subtitles, no captions, no text overlays."` at the end of every prompt — Veo 3.1 sometimes burns subtitles into the video.
+- **Human motion cues are mandatory** — without them subjects look like frozen mannequins. Include 3-4 cues per prompt: breaking eye contact, head tilts, shifting weight, adjusting product grip.
+
+### Sora 2
+
+- `refImageAsBase64` is a **style/mood reference only** — it does NOT preserve face, pose, or scene from the input image. Do NOT use Sora 2 to animate a specific starting frame.
+- Best for: text-only video generation, or when you just have a product photo and want to generate a UGC video directly (no starting frame step).
+- Supports duration up to 20s (enum: 4, 8, 12, 16, 20).
 
 ### File upload (for Veo start frames / reference images)
 
@@ -115,6 +124,13 @@ These are confirmed behaviors of the Arcads external API. They apply to all work
 
 - Must follow two-step flow: (1) generate still image via `POST /V2/images/generate` with `refImageAsBase64`, (2) show user for approval, (3) only then generate video using approved still as start frame.
 - Never skip the approval step — video is expensive, stills are cheap to iterate.
+
+### UGC prompting
+
+- **Imperfection block (camera):** Every UGC image/video prompt must include camera imperfections: motion blur, overexposure, grain, lens distortion, off-center framing, soft focus. Without this, output looks too polished.
+- **Skin realism block (mandatory):** Include 3-4 subtle skin cues inline with character description: "visible pores, slight unevenness in skin tone, minor undereye shadows, hint of shine from natural oils." Do NOT use: acne, pimples, breakouts, blemishes, redness. Goal: "real person, not retouched" — not "person with skin problems."
+- **Reference image order:** character hero first (strongest identity signal), then product, then style refs from `references/aesthetics/`.
+- **Style references:** Store in `references/aesthetics/{style-name}/` (e.g., `ugc-selfie/`, `cinematic/`). Load 3 images from the style folder as `referenceImages`.
 
 ### Image QA
 

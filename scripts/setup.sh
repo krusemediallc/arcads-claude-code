@@ -12,13 +12,19 @@ if [[ ! -f "$ROOT/.env" ]]; then
   cp "$ROOT/.env.example" "$ROOT/.env"
   echo "Created .env from template."
   echo ""
-  echo "Paste your Arcads API key below (find it at https://app.arcads.ai/settings/api)."
-  echo "Press Enter to skip (you can edit .env manually later):"
-  read -r api_key
-  if [[ -n "$api_key" ]]; then
-    # Portable sed: write to temp file then move (works on macOS and Linux)
-    sed "s/your_key_here/$api_key/" "$ROOT/.env" > "$ROOT/.env.tmp" && mv "$ROOT/.env.tmp" "$ROOT/.env"
-    echo "API key saved to .env"
+  echo "Go to https://app.arcads.ai/settings/api and copy your Basic auth header."
+  echo "It looks like: Basic ODQxMTg4NDExZDY1NDQ0MmJk..."
+  echo ""
+  echo "Paste it below (or press Enter to skip and edit .env manually):"
+  read -r basic_auth
+  if [[ -n "$basic_auth" ]]; then
+    # Ensure it starts with 'Basic '
+    if [[ "$basic_auth" != Basic\ * ]]; then
+      basic_auth="Basic $basic_auth"
+    fi
+    # Write to .env with single quotes to handle special characters
+    sed "s|ARCADS_BASIC_AUTH=.*|ARCADS_BASIC_AUTH='$basic_auth'|" "$ROOT/.env" > "$ROOT/.env.tmp" && mv "$ROOT/.env.tmp" "$ROOT/.env"
+    echo "Auth header saved to .env"
   else
     echo "Skipped — edit .env manually before using the skill."
   fi
@@ -45,9 +51,9 @@ echo ""
 echo ""
 
 # ── Step 4: Verify API connectivity ──────────────────────────────────────────
-if grep -q "your_key_here" "$ROOT/.env" 2>/dev/null; then
-  echo "API key not yet set in .env — skipping connectivity check."
-  echo "Run ./scripts/check-arcads-env.sh after adding your key."
+if grep -q "your_base64_encoded_credentials_here" "$ROOT/.env" 2>/dev/null || grep -q "your_key_here" "$ROOT/.env" 2>/dev/null; then
+  echo "Credentials not yet set in .env — skipping connectivity check."
+  echo "Run ./scripts/check-arcads-env.sh after adding your credentials."
 else
   "$ROOT/scripts/check-arcads-env.sh"
 fi

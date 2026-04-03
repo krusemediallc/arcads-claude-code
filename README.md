@@ -31,13 +31,37 @@ This will:
 
 ### 4. Start creating
 
-Ask the agent things like:
-- "Generate a 10-second UGC-style video for my product"
-- "Create a Veo 3.1 video of someone unboxing a phone"
+The agent handles API calls, polling, prompt engineering, and file organization. Here are the main workflows:
+
+#### Create an AI influencer (character sheet)
+
+> "Create a new AI influencer — a 22-year-old college student with freckles"
+
+The agent generates a full-body hero image for your approval, then creates 9 additional angles (3/4 views, profile, closeup, etc.) using the hero as a reference. All 10 images are saved to `references/influencers/` for future use.
+
+#### Generate UGC product selfie stills
+
+> "Generate a UGC selfie of Sofia holding the Arcads Cola can in her bedroom"
+
+Combines your character + product photo + style references from `references/aesthetics/ugc-selfie/` into an authentic-looking iPhone selfie frame grab. Includes skin realism and camera imperfections to fight AI's polished default.
+
+#### Animate a still into video
+
+> "Turn that image into a video — have her talk about the product"
+
+Uses Veo 3.1 with `startFrame` to animate your approved UGC still. The video starts from that exact image with natural human motion (eye contact breaks, head tilts, body shifts) and dialogue.
+
+#### Quick UGC video (no starting frame)
+
+> "Generate a UGC video ad for this product" + drop a product photo
+
+Uses Sora 2 with your product photo as a style reference to generate a video directly — no starting frame needed. Faster but less control over the person's appearance.
+
+#### Other things to try
+
 - "Recreate this influencer's look from a reference photo"
 - "Make a Nano Banana product hero image"
-
-The agent handles API calls, polling, prompt engineering, and file organization.
+- "Generate 5 different ad variations for this product"
 
 ## What's in the box
 
@@ -70,12 +94,12 @@ Find your key: **[Arcads Dashboard > Settings > API](https://app.arcads.ai/setti
 
 ## Supported models
 
-| Model | Type | Best for |
-|-------|------|----------|
-| **Sora 2** | Video | Longer videos (up to 20s), good dialogue, remix existing assets |
-| **Veo 3.1** | Video | High-quality ~8s clips, start-frame consistency, 4K |
-| **Kling 3.0** | Video | B-roll and scene generation |
-| **Nano Banana** | Image | Still frames, product shots, influencer recreation stills |
+| Model | Type | Best for | Credits |
+|-------|------|----------|---------|
+| **Veo 3.1** | Video | Animating a starting frame into ~8s video with dialogue. Best for UGC stills → video. | 1 |
+| **Sora 2** | Video | Longer videos (up to 20s) from text prompts. Product photo as style ref (no starting frame). | varies |
+| **Kling 3.0** | Video | B-roll and scene generation (via scene/b-roll endpoints) | varies |
+| **Nano Banana 2** | Image | UGC stills, character sheets, product shots, influencer recreation | 0.03 |
 
 ## Reference images
 
@@ -83,7 +107,7 @@ Drop images into the `references/` folder and the agent will use them automatica
 
 - **`references/influencers/`** — Photos of people to recreate as AI-generated content
 - **`references/products/`** — Product photos for showcase videos and hero images
-- **`references/aesthetics/`** — Mood boards, lighting references, style inspiration
+- **`references/aesthetics/`** — Style references organized by vibe (`ugc-selfie/`, `cinematic/`, etc.)
 
 Images stay local — the folder contents are gitignored.
 

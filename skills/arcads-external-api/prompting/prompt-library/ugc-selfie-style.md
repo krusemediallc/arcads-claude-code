@@ -22,15 +22,45 @@ Stop using "cinematic," "8k," or "award-winning." Instead:
 - "Unpolished casual home environment," "cluttered background"
 - Avoid "centered framing" or "perfect composition"
 
-### 3. Natural human motion
+### 3. Natural human motion (CRITICAL — what separates AI from real)
 
-- **Selfie arm:** "Holding the camera at arm's length," "arm extended naturally, clearly visible in the frame"
-- **Micro-expressions:** "Subtle head turns," "hair catching the light," "glancing off-camera before looking back at the lens"
-- **Handheld feel:** "Handheld one-hand shot, slightly shaky," "quick handheld adjustments"
+AI video defaults to a frozen mannequin staring at camera. Real people are constantly moving, distracted, and imperfect. **Always include at least 3-4 of these cues** in every UGC video prompt:
+
+#### Eye behavior
+- "Briefly breaks eye contact with the camera, glances down or to the side, then looks back"
+- "Eyes dart to something off-screen for a moment before refocusing on the lens"
+- "Looks at the product in their hand, then back to camera"
+- "Blinks naturally, not a fixed stare"
+
+#### Head and face
+- "Slight head tilts while talking, not perfectly still"
+- "Nods along with their own words"
+- "Raises eyebrows for emphasis mid-sentence"
+- "Purses lips or pauses to think before continuing"
+- "Caught mid-thought, slight hesitation"
+
+#### Body movement
+- "Shifts weight from one foot to the other"
+- "Leans toward camera for emphasis, then leans back"
+- "Adjusts their grip on the product"
+- "Fidgets with their hair or touches their face briefly"
+- "Turns the product to show a different angle"
+- "Takes a small step back or repositions"
+
+#### Full scene motion (when appropriate)
+- "Walks from one part of the room to another while talking"
+- "Sits down on the couch/bed mid-sentence"
+- "Paces slowly while explaining"
+- "Turns around to show the background, then turns back to camera"
+
+#### Selfie arm
+- "Holding the camera at arm's length, arm extended naturally, clearly visible in the frame"
+- "Adjusts phone angle mid-video"
+- "Quick handheld adjustments, slightly shaky one-hand grip"
 
 ### 4. Negative prompting
 
-Always exclude: "studio lighting, professional photography, stock photo, perfect skin, heavy makeup, centered framing, staged, cinematic, LUT, color graded, stabilization"
+Always exclude: "studio lighting, professional photography, stock photo, perfect skin, heavy makeup, centered framing, staged, cinematic, LUT, color graded, stabilization, no subtitles, no captions, no text overlays, no on-screen text"
 
 ## Model-specific strategies
 
@@ -41,6 +71,7 @@ Always exclude: "studio lighting, professional photography, stock photo, perfect
 - Start with **"A selfie video of..."** to trigger correct framing
 - Lock perspective with `(thats where the camera is)` syntax
 - Add **"The image is slightly grainy, looks very film-like"** to fight Veo's clean default
+- **ALWAYS end with:** `"No subtitles, no captions, no text overlays."` — Veo 3.1 will sometimes burn subtitles into the video if you don't explicitly exclude them
 - For multi-shot Reels, use timestamps: `[00:00-00:02] ... [00:02-00:04] ...`
 - Sweet spot: **75–125 words**
 
@@ -49,13 +80,15 @@ Always exclude: "studio lighting, professional photography, stock photo, perfect
 A selfie video of a 25-year-old woman in her messy apartment holding
 the camera at arm's length (thats where the camera is). Her right arm
 is clearly visible in the frame. Natural lighting from a large window
-creates unbalanced, soft shadows. She is casually talking, occasionally
-looking off-camera before looking directly into the lens with a
-conspiratorial expression. The image is slightly grainy, documentary-
-style handheld camera work, completely unedited vlog aesthetic.
-Background sounds of city traffic. She speaks in a casual tone:
-'Nobody talks about how productivity advice is just procrastination.'
-No subtitles.
+creates unbalanced, soft shadows. She is casually talking — she briefly
+breaks eye contact to glance down at the product in her hand, then
+looks back at camera. She tilts her head slightly, nods along with her
+own words, raises her eyebrows for emphasis. She shifts her weight and
+leans toward the camera, then adjusts her phone angle. The image is
+slightly grainy, documentary-style handheld camera work, completely
+unedited vlog aesthetic. Background sounds of city traffic. She speaks
+in a casual tone: 'Nobody talks about how productivity advice is just
+procrastination.' No subtitles, no captions, no text overlays.
 ```
 
 ### Sora 2 — narrative director

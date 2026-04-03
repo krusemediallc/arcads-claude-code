@@ -45,11 +45,11 @@ Show the user:
 2. The 5 descriptor tags you'll use for the folder name (see naming convention below)
 3. Ask if anything needs adjusting before generating
 
-## Step 3: Generate the hero front portrait
+## Step 3: Generate the hero image (full body front)
 
-This is the anchor image that defines the character. All other angles will reference it.
+This is the anchor image that defines the character. All other angles will reference it. **Use a full-body shot as the hero** — this gives the model complete visual context (face, hair, build, clothing, shoes, proportions) so every subsequent angle stays consistent. A medium portrait forces the model to invent the lower half for full-body angles.
 
-1. Compose the hero prompt: prepend `"Front-facing medium portrait."` to the base prompt, add `"She/He looks directly at camera with a warm, confident expression. Camera at eye level, soft even studio lighting from both sides."`
+1. Compose the hero prompt: prepend `"Full body front view, head to toe."` to the base prompt, add `"She/He looks directly at camera with a warm, confident expression. Relaxed stance, weight on one hip. Camera at eye level, soft even studio lighting from both sides."` Include the full outfit (e.g., jeans + white sneakers) in the hero prompt since this is the full-body reference.
 2. Call `POST /V2/images/generate` with:
    - `productId` and `projectId` (from session folder)
    - `model`: `nano-banana-2` (default) or `nano-banana` (Pro)
@@ -57,7 +57,7 @@ This is the anchor image that defines the character. All other angles will refer
    - `aspectRatio`: `9:16`
 3. Poll `GET /v1/assets/{id}` until `generated`.
 4. **Post-generation QA:** Inspect for anatomy defects per [nano-banana.md](nano-banana.md). Regenerate with refined prompt if needed (up to 2 retries).
-5. Download the image and **show it to the user**.
+5. Download the image to the character's `references/influencers/` folder and **open it for the user** using `open <path>` (macOS) so they can review it at full resolution in Preview.
 6. **Wait for explicit user approval.** This is the character — if they don't like it, iterate before generating 9 more images. Do NOT proceed without approval.
 
 ## Step 4: Generate 9 remaining angles
@@ -81,15 +81,15 @@ Once the hero is approved:
 
 | # | File name | Angle | Prompt prefix | Pose/lighting notes |
 |---|-----------|-------|---------------|---------------------|
-| 1 | `01-hero-front.png` | Front portrait | `Front-facing medium portrait.` | Direct eye contact, soft even lighting from both sides |
+| 1 | `01-hero-front.png` | Full body front (hero) | `Full body front view, head to toe.` | Direct eye contact, relaxed stance, weight on one hip, full outfit visible, soft even lighting from both sides |
 | 2 | `02-3q-left.png` | 3/4 left | `Three-quarter view from the left.` | Angled 45° to camera-left, looking toward lens, soft directional light from camera-right |
 | 3 | `03-3q-right.png` | 3/4 right | `Three-quarter view from the right.` | Angled 45° to camera-right, looking toward lens, soft directional light from camera-left |
 | 4 | `04-profile-left.png` | Profile left | `Left profile view.` | Full side profile facing camera-left, hair falls naturally, soft rim light from behind |
 | 5 | `05-profile-right.png` | Profile right | `Right profile view.` | Full side profile facing camera-right, hair falls naturally, soft rim light from behind |
 | 6 | `06-face-closeup.png` | Face close-up | `Face close-up, tight crop.` | Forehead to chin, hair down and loose, every detail visible, soft beauty lighting, catchlights in both eyes |
 | 7 | `07-back-shoulder.png` | Back/over shoulder | `Back view, looking over her/his shoulder.` | Faces away, looking back over right shoulder, playful glance, hair visible from behind |
-| 8 | `08-full-body-front.png` | Full body front | `Full body front view.` | Head to toe, relaxed stance, weight on one hip, add jeans + white sneakers to outfit |
-| 9 | `09-full-body-3q.png` | Full body 3/4 | `Full body three-quarter view.` | Full length, angled 45° to camera-left, walking toward camera, add jeans + white sneakers |
+| 8 | `08-medium-portrait.png` | Medium portrait | `Front-facing medium portrait, waist up.` | Waist-up framing, direct eye contact, warm expression, soft even lighting |
+| 9 | `09-full-body-3q.png` | Full body 3/4 | `Full body three-quarter view.` | Full length, angled 45° to camera-left, walking toward camera, same full outfit |
 | 10 | `10-above-angle.png` | Above angle | `Slightly above angle, looking up at camera.` | Camera positioned slightly above, chin tilted up, bright smile, soft overhead lighting |
 
 ## Step 5: QA all images
@@ -139,7 +139,7 @@ Files are zero-padded and named by angle:
 05-profile-right.png
 06-face-closeup.png
 07-back-shoulder.png
-08-full-body-front.png
+08-medium-portrait.png
 09-full-body-3q.png
 10-above-angle.png
 ```
@@ -149,6 +149,7 @@ Files are zero-padded and named by angle:
 ### After saving
 
 - Assign all generated assets to the session project via `POST /v1/assets/add-to-project`
+- **Open the full character folder** for the user using `open <folder_path>` (macOS) so they can review all 10 images at full resolution
 - Present results as a numbered list showing all 10 angles
 - Note total credits used
 
