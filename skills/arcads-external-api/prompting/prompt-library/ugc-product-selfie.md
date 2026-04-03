@@ -206,7 +206,7 @@ Once the user approves a UGC still, it can be used as a `startFrame` for video g
 
 1. Upload approved still via `POST /v1/file-upload/get-presigned-url` → `PUT` to S3 → get `filePath`
 2. `POST /v1/veo31/generate/video` with `startFrame: filePath` + dialogue in `prompt`
-3. **Resolution:** Default to `720p` — 4K and 1080p show no visible quality difference for UGC-style content and produce 3x larger files. Use `1080p` only if the user specifically requests higher resolution.
+3. **Resolution:** Default to `720p` — 4K and 1080p show no visible quality difference for UGC-style content and produce 3-8x larger files. Use `1080p` only if the user specifically requests higher resolution.
 4. **Human motion cues (CRITICAL):** Always include at least 3-4 natural movement cues in the prompt. Without these, the video will look like a frozen mannequin staring at camera. Pick from:
    - Eye behavior: "briefly breaks eye contact, glances down at the product, then looks back at camera"
    - Head/face: "slight head tilts while talking, nods along with own words, raises eyebrows for emphasis"

@@ -208,7 +208,7 @@ These text fields feed into script/prompt context. Product images are currently 
 
 ### Create folder
 
-`POST /v1/folders` — `{"productId": "...", "name": "Arcads API - 2026-03-24"}`. Returns `id`, `productId`, `name`.
+`POST /v1/folders` — `{"productId": "...", "name": "Arcads API - YYYY-MM-DD"}`. Returns `id`, `productId`, `name`.
 
 ### List folders
 
@@ -216,7 +216,7 @@ These text fields feed into script/prompt context. Product images are currently 
 
 ### Create project (inside a folder)
 
-`POST /v1/projects` — `{"productId": "...", "folderId": "...", "name": "Arcads API - 2026-03-24"}`. Returns `id`, `folderId`, `name`.
+`POST /v1/projects` — `{"productId": "...", "folderId": "...", "name": "Arcads API - YYYY-MM-DD"}`. Returns `id`, `folderId`, `name`.
 
 ### Assign asset to project
 

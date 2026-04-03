@@ -1,4 +1,4 @@
-# Ignore all image files (keep folder structure + README)
+# Ignore all image and video files (keep folder structure + README)
 *.jpg
 *.jpeg
 *.png
@@ -7,3 +7,8 @@
 *.bmp
 *.tiff
 *.heic
+*.mp4
+*.mov
+*.mkv
+*.avi
+*.webm
