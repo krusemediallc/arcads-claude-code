@@ -41,6 +41,9 @@ Before the first call, confirm `.gitignore` excludes `.env`.
 | **UGC / selfie-style** (authentic reels) | Any model route (Sora2, Veo31) or scene/b-roll | [prompt-library/ugc-selfie-style.md](prompting/prompt-library/ugc-selfie-style.md) — cross-model UGC guide with iPhone-shot aesthetic, negative prompts, per-model formulas |
 | **Create a new AI influencer** from a text description (character sheet) | **Two-pass:** (1) generate hero front portrait via `POST /V2/images/generate`, get user approval; (2) generate 9 remaining angles with hero as `referenceImages`. Save all 10 to `references/influencers/`. | [prompt-library/character-sheet.md](prompting/prompt-library/character-sheet.md) — full workflow: describe → expand → hero → approve → 9 angles → QA → save |
 | **UGC product selfie** — AI influencer holding a product in a selfie-style image | Combine character hero + product photo + style references from `references/aesthetics/` as `referenceImages`. Prompt must include imperfection block for authenticity. | [prompt-library/ugc-product-selfie.md](prompting/prompt-library/ugc-product-selfie.md) — full workflow: gather inputs → upload refs → compose prompt → generate → iterate |
+| **Static ad** — product heroes, lifestyle shots, flat lays, banners, abstract brand visuals (no people) | `POST /V2/images/generate` with product photo as `refImageAsBase64` and/or style refs as `referenceImages`. Choose category (product hero, lifestyle, flat lay, ingredient, abstract, banner, seasonal). | [prompt-library/static-ad.md](prompting/prompt-library/static-ad.md) — full workflow: concept → category → compose prompt → generate → QA → iterate |
+| **Ad remix** — recreate an existing ad with new branding, product, or colors | Analyze reference ad → define swap plan → `POST /V2/images/generate` with reference ad as `referenceImages` (style) + product photo as `refImageAsBase64` (fidelity). | [prompt-library/ad-remix.md](prompting/prompt-library/ad-remix.md) — full workflow: analyze → swap plan → compose prompt → generate → compare → iterate |
+| **Model comparison** — find the best image model for a specific ad type | Fire the same prompt across multiple models (`nano-banana-2`, `nano-banana`, `gpt-image`, `seedream`, etc.) via `POST /V2/images/generate`, compare results side by side. | [prompt-library/image-quality-playbook.md](prompting/prompt-library/image-quality-playbook.md) — model list, comparison workflow, quality workarounds |
 | **Talking avatar / script** (actors, voices) | `POST /v1/products` → folders/projects/scripts as needed; `POST /v1/scripts`, `POST /v1/scripts/{id}/generate` | [prompting/guide.md](prompting/guide.md) for brief structure; pull `situationId` / `voiceId` from `GET /v1/actors`, `GET /v1/situations`, `GET /v1/voices` |
 | **OmniHuman** | `POST /v1/omnihuman` or script `generate-omnihuman` per API | [prompting/guide.md](prompting/guide.md) |
 | **Audio-driven** | `POST /v1/audio-driven` | [prompting/guide.md](prompting/guide.md) |
@@ -210,6 +213,12 @@ Applies to **still images** from Arcads, especially `POST /V2/images/generate` (
 
 Details and checklist items: [prompting/prompt-library/nano-banana.md](prompting/prompt-library/nano-banana.md).
 
+## Creative brief intake
+
+If the user mentions a brief, check `references/briefs/` for filled-in copies of `BRIEF_TEMPLATE.md`. Read the brief and extract all inputs needed for the chosen workflow (static ad, ad remix, product showcase, etc.). The brief replaces the need to ask the user each question individually — but still confirm any ambiguous or missing fields before generating.
+
+If no brief exists but the user wants to use one, point them to `references/briefs/BRIEF_TEMPLATE.md` and ask them to copy, fill in, and save it.
+
 ## Execution checklist (agent)
 
 1. **Session folder:** Ensure today's dated folder + project exist (see above).
@@ -244,4 +253,8 @@ Details and checklist items: [prompting/prompt-library/nano-banana.md](prompting
 - [prompting/prompt-library/nano-banana.md](prompting/prompt-library/nano-banana.md) — Nano Banana image prompting guide.
 - [prompting/prompt-library/character-sheet.md](prompting/prompt-library/character-sheet.md) — generate a 10-image character sheet for a new AI influencer from a text description.
 - [prompting/prompt-library/ugc-product-selfie.md](prompting/prompt-library/ugc-product-selfie.md) — UGC selfie-style still image: character + product + style references.
+- [prompting/prompt-library/static-ad.md](prompting/prompt-library/static-ad.md) — static ad images (product heroes, lifestyle, flat lays, banners, abstract brand visuals) without people.
+- [prompting/prompt-library/ad-remix.md](prompting/prompt-library/ad-remix.md) — recreate existing ads with new branding, product, or colors.
+- [prompting/prompt-library/image-quality-playbook.md](prompting/prompt-library/image-quality-playbook.md) — maximizing image quality, model comparison workflow, workarounds for common AI shortfalls, post-production checklist.
 - [prompting/brand-voice-starter.md](prompting/brand-voice-starter.md) — template to copy into `MASTER_CONTEXT.md`.
+- `references/briefs/BRIEF_TEMPLATE.md` — creative brief template; copy, fill in, drop in `references/briefs/` for the agent to read.
