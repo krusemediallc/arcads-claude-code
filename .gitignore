@@ -2,7 +2,8 @@
 .env.*
 !.env.example
 MASTER_CONTEXT.md
-.claude/skills/
+.claude/
 .cursor/skills/
 .DS_Store
 *.log
+outputs/

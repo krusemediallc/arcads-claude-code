@@ -25,20 +25,44 @@ curl -sS -u "$ARCADS_API_KEY:" "https://external-api.arcads.ai/v1/products"
 
 (`-u 'key:'` means password empty.)
 
-## Model → route mapping (primary models)
+## Model → route mapping
 
-| Model (product) | REST route | Request body schema (OpenAPI) |
-|-------------------|------------|-------------------------------|
-| **Sora 2** | `POST /v1/sora2/generate/video` | `StartSora2Dto` |
+### Primary: unified v2 video endpoint
+
+All video models are available through a single endpoint. Use this as the **primary route** for all video generation.
+
+| Model | `model` value | Endpoint | Request body |
+|-------|---------------|----------|-------------|
+| **Sora 2** | `sora2` | `POST /v2/videos/generate` | `CreateVideoDto` |
+| **Sora 2 Pro** | `sora2-pro` | `POST /v2/videos/generate` | `CreateVideoDto` |
+| **Veo 3.1** | `veo31` | `POST /v2/videos/generate` | `CreateVideoDto` |
+| **Kling 2.6** | `kling-2.6` | `POST /v2/videos/generate` | `CreateVideoDto` |
+| **Kling 3.0** | `kling-3.0` | `POST /v2/videos/generate` | `CreateVideoDto` |
+| **Grok Video** | `grok-video` | `POST /v2/videos/generate` | `CreateVideoDto` |
+| **Seedance 2.0** | `seedance-2.0` | `POST /v2/videos/generate` | `CreateVideoDto` |
+
+### Other endpoints (not on the v2 unified route)
+
+| Model / flow | Endpoint | Request body |
+|-------------|----------|-------------|
+| **Nano Banana (image)** | `POST /v2/images/generate` | `CreateImageDto` — default `model`: `nano-banana-2`; optional `nano-banana` (Nano Banana Pro) |
+| **B-roll** | `POST /v1/b-roll` | `CreateBRollDto` |
+| **Scene** | `POST /v1/scene` | `CreateSceneDto` |
 | **Sora 2 remix** | `POST /v1/sora2/remix/video` | `RemixSora2Dto` |
-| **Veo 3.1** | `POST /v1/veo31/generate/video` | `StartVeo31Dto` |
-| **Kling 3.0** | No separate `kling` path in the published OpenAPI. Asset results can have `type: "kling_30"` (see `AssetResponseDto`). Use **`POST /v1/b-roll`** or **`POST /v1/scene`** when your Arcads workflow uses those flows for Kling-style clips; craft prompts using the Kling vendor guide in `prompting/prompt-library/kling-3.md`. |
-| **Nano Banana (image)** | `POST /V2/images/generate` | `CreateImageDto` — default `model`: `nano-banana-2`; optional `nano-banana` (Nano Banana Pro) (see below) |
-| **Nano Banana (video via b-roll/scene)** | `POST /v1/b-roll` or `POST /v1/scene` | `CreateBRollDto` / `CreateSceneDto` — asset `type` may read `nano-banana` / `nano-banana-2`; prompts follow `prompting/prompt-library/nano-banana.md` |
+| **Nano Banana (video via b-roll/scene)** | `POST /v1/b-roll` or `POST /v1/scene` | `CreateBRollDto` / `CreateSceneDto` — asset `type` may read `nano-banana` / `nano-banana-2` |
 
-**Note:** `CreateBRollDto` / `CreateSceneDto` do not expose a `model` enum in the published schema — model routing may be workspace- or server-side. If generation does not match the intended engine, confirm in the Arcads product or support which endpoint backs Kling / Nano Banana for your account.
+### Legacy v1 model-specific endpoints
 
-**Important — V2 casing:** The Nano Banana image route uses an uppercase **`/V2/`** prefix (not `/v2/`). Keep this exact casing in all requests.
+These still work and are kept for backward compatibility. Prefer the v2 unified endpoint for new work.
+
+| Model | Legacy route | Legacy DTO |
+|-------|-------------|------------|
+| Sora 2 | `POST /v1/sora2/generate/video` | `StartSora2Dto` |
+| Veo 3.1 | `POST /v1/veo31/generate/video` | `StartVeo31Dto` |
+
+**Note:** Kling models did not have dedicated v1 endpoints. B-roll and scene endpoints remain unchanged (no v2 equivalent).
+
+**Important — image endpoint casing:** The Nano Banana image route uses **`/v2/`** (the OpenAPI spec shows lowercase). Previous testing confirmed uppercase `/V2/` also works. Use lowercase `/v2/` going forward.
 
 ## Images vs video
 
@@ -69,7 +93,104 @@ curl -sS -u "$ARCADS_API_KEY:" "https://external-api.arcads.ai/v1/products"
 
 ## Key request bodies (summary)
 
-### `CreateImageDto` (OpenAPI) — `POST /V2/images/generate`
+### `CreateVideoDto` (OpenAPI) — `POST /v2/videos/generate`
+
+**Endpoint:** `POST /v2/videos/generate` — unified video generation for all models.
+
+**Fields:**
+
+- `model` (required) — enum: `sora2`, `sora2-pro`, `veo31`, `kling-2.6`, `kling-3.0`, `grok-video`, `seedance-2.0`
+- `productId` (required) — UUID of the Arcads product
+- `prompt` (required) — the video prompt
+- `aspectRatio` (optional) — varies by model (see compatibility table below)
+- `duration` (optional) — varies by model (see compatibility table below)
+- `resolution` (optional) — varies by model (see compatibility table below)
+- `referenceImages` (optional) — array of `filePath` strings from presigned upload (max varies by model)
+- `referenceVideos` (optional) — array of `filePath` strings; **Seedance 2.0 only** (max 3)
+- `referenceAudios` (optional) — array of `filePath` strings; **Seedance 2.0 only** (max 3)
+- `audioEnabled` (optional) — boolean; **Seedance 2.0 only**
+- `startFrame` (optional) — presigned `filePath`; supported by veo31, kling-2.6, kling-3.0, grok-video (NOT Seedance 2.0)
+- `endFrame` (optional) — presigned `filePath`; supported by veo31, kling-2.6, kling-3.0
+- `projectId` (optional) — assign to session project
+- `nbGenerations` (optional) — sora2 / sora2-pro only (1–10)
+
+**Seedance 2.0 — mutually exclusive reference input modes (confirmed 2026-04-09):**
+
+On Seedance 2.0, `referenceVideos` and `referenceImages` **cannot be combined** in the same request. Sending both fields returns `HTTP 500 UNKNOWN_ERROR` from the server. Choose one mode per call:
+
+- **Image-to-video:** `referenceImages` (1–3), no `referenceVideos`.
+- **Video-to-video:** `referenceVideos` (1–3), no `referenceImages`.
+- `referenceAudios` can be combined with either mode (confirmed 2026-04-09 with i2v + audio-ref).
+
+This is not documented in the OpenAPI spec — add a sanity check before firing any Seedance 2.0 call and refuse to mix the two.
+
+**Seedance 2.0 — confirmed pricing (2026-04-09):**
+
+- **Image-to-video:** ~0.06 credits/sec. 4s ≈ 0.24, 15s ≈ 0.9. Audio reference does NOT change price.
+- **Video-to-video:** ~0.1 credits/sec. 15s ≈ 1.5 (exact). Base rate cited by user was 1.0 (likely for a shorter duration).
+
+Use these as the default estimate; `logs/arcads-api.jsonl` has the raw per-call data.
+
+**⚠️ Seedance 2.0 content-check billing behavior (confirmed 2026-04-09):**
+
+Credits are charged at **create time**, BEFORE the content checker runs. If the prompt is flagged after creation, the asset status transitions to `failed` with `data.error.message` = `"body.prompt: The content could not be processed because it contained material flagged by a content checker"` and the full `creditsCharged` is NOT refunded by the API.
+
+**Implication:** Before firing a Seedance 2.0 call with a new or modified prompt, sanity-check for anything that could trip a filter — especially on `v2v` calls where content checking appears stricter. If a 500 or failed status comes back on the first attempt, do **not** automatically retry the same payload — tighten the prompt language first.
+
+**Per-model field compatibility:**
+
+| Field | sora2 / sora2-pro | veo31 | kling-2.6 | kling-3.0 | grok-video | seedance-2.0 |
+|-------|:-:|:-:|:-:|:-:|:-:|:-:|
+| `aspectRatio` | 1:1, 16:9, 9:16 | 1:1, 16:9, 9:16 | — | — | auto, 1:1, 16:9, 9:16 | **9:16, 16:9 only** |
+| `duration` | 4,8,12,16,20 | — (auto ~8s) | 5,10 | 3–15 | 1–15 | **4–15** |
+| `resolution` | 720p, 1080p | 720p, 1080p, 4K | — | — | 480p, 720p | **480p, 720p** |
+| `referenceImages` | max 1 | max 3 | — | — | — | **max 3** |
+| `referenceVideos` | — | — | — | — | — | **max 3** |
+| `referenceAudios` | — | — | — | — | — | **max 3** |
+| `audioEnabled` | — | — | — | — | — | **yes** |
+| `startFrame` | — | yes | yes | yes | yes | — |
+| `endFrame` | — | yes | yes | yes | — | — |
+| `nbGenerations` | 1–10 | — | — | — | — | — |
+
+**Response (201):** Returns an asset object. Poll via `GET /v1/assets/{id}`.
+
+**curl example (Seedance 2.0):**
+
+```bash
+source .env && curl -sS -X POST \
+  -u "$ARCADS_API_KEY:" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "seedance-2.0",
+    "productId": "...",
+    "prompt": "15 seconds UGC style skincare review...",
+    "aspectRatio": "9:16",
+    "duration": 15,
+    "resolution": "720p",
+    "audioEnabled": true,
+    "referenceImages": ["/path/from/presigned-upload.jpg"]
+  }' \
+  "https://external-api.arcads.ai/v2/videos/generate"
+```
+
+**curl example (Sora 2 via v2):**
+
+```bash
+source .env && curl -sS -X POST \
+  -u "$ARCADS_API_KEY:" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "sora2",
+    "productId": "...",
+    "prompt": "...",
+    "aspectRatio": "9:16",
+    "duration": 8,
+    "resolution": "720p"
+  }' \
+  "https://external-api.arcads.ai/v2/videos/generate"
+```
+
+### `CreateImageDto` (OpenAPI) — `POST /v2/images/generate`
 
 **Endpoint:** `POST /V2/images/generate` (note uppercase V2). Same body as documented in Swagger under **`CreateImageDto`**.
 
@@ -113,23 +234,25 @@ source .env && curl -sS -X POST \
   "https://external-api.arcads.ai/V2/images/generate"
 ```
 
-### `StartSora2Dto` (required fields)
+### `StartSora2Dto` (legacy — `POST /v1/sora2/generate/video`)
+
+Prefer `CreateVideoDto` with `model: "sora2"` via `POST /v2/videos/generate`.
 
 - `productId`, `prompt`, `aspectRatio`, `duration`
 - Optional: `projectId`, `refImageAsBase64`, `resolution`, `model` (`sora2` | `sora2_pro`)
-- **`duration`** enum: **4, 8, 12, 16, 20** seconds. Auto-select based on script word count (see SKILL.md "Script length → video duration").
+- **`duration`** enum: **4, 8, 12, 16, 20** seconds.
 - **`resolution`** enum: `720p`, `1080p`
 - **`aspectRatio`** enum: `1:1`, `16:9`, `9:16`
-- **Dialogue:** Embed in `prompt` (e.g. `Dialogue: "text here"`)
 
-### `StartVeo31Dto` (required fields)
+### `StartVeo31Dto` (legacy — `POST /v1/veo31/generate/video`)
+
+Prefer `CreateVideoDto` with `model: "veo31"` via `POST /v2/videos/generate`.
 
 - `productId`, `prompt`, `resolution`, `aspectRatio`
 - Optional: `projectId`, `referenceImages`, `startFrame`, `endFrame` (see API docs for mutual exclusions)
-- **No `duration` field** — Veo 3.1 auto-determines length (~8s typical). Warn user if script is long (>20 words).
+- **No `duration` field** — Veo 3.1 auto-determines length (~8s typical).
 - **`resolution`** enum: `720p`, `1080p`, `4K`
 - **`aspectRatio`** enum: `1:1`, `16:9`, `9:16`
-- **Dialogue:** Embed in `prompt` (e.g. `She speaks: "text here"`)
 
 ### `CreateBRollDto` (required fields)
 
@@ -152,16 +275,25 @@ source .env && curl -sS -X POST \
 |-------|---------------|-------------------|-------------|
 | Sora 2 | `duration` (required) | 4, 8, 12, 16, 20 | Yes (in prompt) |
 | Veo 3.1 | None (auto) | ~8s typical | Yes (in prompt) |
+| Kling 2.6 | `duration` | 5, 10 | No |
+| Kling 3.0 | `duration` | 3–15 | No |
+| Grok Video | `duration` | 1–15 | No |
+| **Seedance 2.0** | `duration` | **4–15** (continuous) | **Yes (in prompt)** |
 | B-roll | `duration` (required) | 5, 10 | No |
 | Scene | None (auto) | Varies | Yes (`script` field) |
 | Nano Banana (image) | N/A (still image) | N/A | No |
 
-### File upload (for Veo reference images / frames)
+### File upload (for reference images, videos, audio)
 
-- `POST /v1/file-upload/get-presigned-url` with body `{"fileType": "image/jpeg"}` (field is `fileType`, **not** `contentType`).
-- Response: `presignedUrl` (for `PUT` upload to S3), `filePath` (pass this string into `startFrame` / `referenceImages` / `endFrame`), `fileId`, `expiresIn` (seconds).
-- Upload: `curl -X PUT -H "Content-Type: image/jpeg" --data-binary @file.jpg "$presignedUrl"`.
-- Then use `filePath` value in `StartVeo31Dto` fields.
+`POST /v1/file-upload/get-presigned-url` — supports images, videos, and audio files.
+
+- **Request body:** `{"fileType": "image/jpeg"}` (field is `fileType`, **not** `contentType`).
+- **Supported `fileType` values:** `image/jpeg`, `image/jpg`, `image/png`, `image/gif`, `image/webp`, `image/heic`, `image/heif`, `video/mp4`, `video/quicktime`, `video/avi`, `video/mov`, `video/wmv`, `video/webm`, `audio/mp3`, `audio/mp4`, `audio/wav`, `audio/m4a`, `audio/x-m4a`, `audio/aac`, `audio/ogg`, `audio/flac`, `audio/webm`, `audio/mpeg`, `audio/opus`
+- **Response:** `presignedUrl` (for `PUT` upload to S3), `filePath` (pass into `startFrame` / `referenceImages` / `referenceVideos` / `referenceAudios`), `fileId`, `expiresIn` (seconds), `maxFileSize` (bytes), `maxDuration` (seconds, for video uploads).
+- **Upload:** `curl -X PUT -H "Content-Type: image/jpeg" --data-binary @file.jpg "$presignedUrl"`.
+- Then use `filePath` value in `CreateVideoDto` fields.
+
+**Seedance 2.0 file uploads:** Use the same presigned URL flow for `referenceVideos` (pass `fileType: "video/mp4"`) and `referenceAudios` (pass `fileType: "audio/mp3"` or similar).
 
 ### Image minimum size — auto-upscale
 
