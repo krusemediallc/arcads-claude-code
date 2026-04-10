@@ -129,6 +129,67 @@ This is not documented in the OpenAPI spec — add a sanity check before firing 
 - **Image-to-video:** ~0.06 credits/sec. 4s ≈ 0.24, 15s ≈ 0.9. Audio reference does NOT change price.
 - **Video-to-video:** ~0.1 credits/sec. 15s ≈ 1.5 (exact). Base rate cited by user was 1.0 (likely for a shorter duration).
 
+**Kling 3.0 — confirmed pricing (2026-04-09):**
+
+- **Text-to-video 3s:** 0.22 credits (0.073/sec). `startFrame` does NOT add cost.
+- **Text-to-video / startFrame 15s:** **0.7 credits (0.047/sec) — NON-LINEAR.** Kling is ~35% cheaper per second at max duration than at min duration.
+- **Gen speed:** 30–250s depending on duration (3s ≈ 30s to generate; 15s ≈ 250s).
+- **Silent only:** no audio/speech output; `audioEnabled` is seedance-only.
+
+**Veo 3.1 — confirmed pricing (2026-04-09):**
+
+- **Text-only (no duration field, auto ~8s):** **1.0 credit flat** (~0.125/sec if 8s). **Most expensive per second** of the 4 models tested.
+- **Gen speed:** ~67s for text-only. Fast.
+- **Supports speech** via prompt text.
+
+**Sora 2 — confirmed pricing (2026-04-09):**
+
+- **Text-only 4s:** 0.2 credits (0.05/sec). Cheaper per second than Kling/Seedance-i2v.
+- **Gen speed:** ~98s for 4s. Slower per-generated-second than Kling/Grok.
+- **Supports speech** via prompt text.
+- **Duration enum:** 4/8/12/16/20 (fixed values, not continuous).
+
+**Grok Video — confirmed pricing (2026-04-09):**
+
+- **Text-only 3s:** 0.08 credits (0.027/sec). **CHEAPEST model** tested.
+- **Gen speed:** ~5s for 3s. **FASTEST model** tested.
+- **Silent only.**
+- **Duration range:** 1–15s (continuous).
+
+### Pricing comparison table (as of 2026-04-09)
+
+| Model | Rate/sec | 3s | 8s | 15s | Audio | Gen speed |
+|-------|---------:|---:|---:|----:|:-----:|:---------:|
+| Grok Video | **0.027** | 0.08 | ~0.22 | ~0.41 | ❌ | **~5s (fastest)** |
+| Sora 2 | 0.05 | — | ~0.4 | — | ✅ speech | ~98s |
+| Seedance 2.0 i2v | 0.06 | ~0.18 | ~0.48 | 0.9 | ✅ speech (currently broken with refImgs) | 2–6 min |
+| Kling 3.0 (3s) | 0.073 | 0.22 | — | — | ❌ | ~30s |
+| Kling 3.0 (15s) | **0.047** (non-linear) | — | — | **0.7** | ❌ | ~250s |
+| Seedance 2.0 v2v | 0.10 | — | — | 1.5 | ✅ speech | ~4.5 min |
+| Veo 3.1 (auto ~8s) | ~0.125 | — | **1.0 flat** | — | ✅ speech | ~67s |
+
+**⚠️ Multi-model image-input regression (confirmed 2026-04-09):**
+
+The **image-input 500 regression is NOT limited to Seedance 2.0 i2v+audio**. It affects **all four non-Seedance models** via the v2 endpoint:
+
+| Model | Image input mode | Result |
+|-------|-----------------|--------|
+| veo31 | `startFrame` | ❌ 500 UNKNOWN_ERROR at create |
+| sora2 | `referenceImages` | ❌ 500 UNKNOWN_ERROR at create |
+| grok-video | `startFrame` | ❌ 500 UNKNOWN_ERROR at create |
+| kling-3.0 | `startFrame` | ✅ works (only non-broken model for image-to-video right now) |
+
+**Workaround:** For image-to-video generation via the v2 endpoint today, use **kling-3.0** (startFrame) or **seedance-2.0** (referenceImages, audioEnabled=false). All other models require text-only prompts until the regression lifts. Run a sanity probe per-model at session start.
+
+**⚠️ Kling 3.0 `endFrame` is effectively broken (confirmed 2026-04-09):**
+
+OpenAPI spec lists `endFrame` as supported on kling-3.0, but in practice:
+
+- `startFrame` + `endFrame` together → `HTTP 500 UNKNOWN_ERROR` at create time (not charged).
+- `endFrame` alone (no `startFrame`) → accepted at create with `pending` status, but fails shortly after with `body.start_image_url: Field required`. **Credits ARE charged** for this validation-level failure.
+
+**Rule:** Do **not** use `endFrame` on kling-3.0. It cannot be used alone (billed failure) and cannot be combined with `startFrame` (500). If you need frame-to-frame morphing, use Veo 3.1 instead.
+
 Use these as the default estimate; `logs/arcads-api.jsonl` has the raw per-call data.
 
 **⚠️ Seedance 2.0 content-check billing behavior (confirmed 2026-04-09):**
@@ -136,6 +197,35 @@ Use these as the default estimate; `logs/arcads-api.jsonl` has the raw per-call 
 Credits are charged at **create time**, BEFORE the content checker runs. If the prompt is flagged after creation, the asset status transitions to `failed` with `data.error.message` = `"body.prompt: The content could not be processed because it contained material flagged by a content checker"` and the full `creditsCharged` is NOT refunded by the API.
 
 **Implication:** Before firing a Seedance 2.0 call with a new or modified prompt, sanity-check for anything that could trip a filter — especially on `v2v` calls where content checking appears stricter. If a 500 or failed status comes back on the first attempt, do **not** automatically retry the same payload — tighten the prompt language first.
+
+**⚠️ Seedance 2.0 v2v rejects reference videos containing human faces (confirmed 2026-04-09):**
+
+Video-to-video calls (`referenceVideos`) with clips that contain people / faces consistently fail the content checker, even with sanitized documentary-style prompts. **3/3 correlation:**
+
+| Ref video | People in frame | Result |
+|---|---|---|
+| valentina-hat-video-4-driving | yes | content check failed (1.5 cr charged) |
+| astrid-veo31-720p-motion | yes | content check failed (1.5 cr charged) |
+| test08-text-only-16x9 (product-only) | no | generated successfully (1.5 cr) |
+
+**Rule:** On `v2v` calls, use reference videos that show the **product, object, or abstract footage** only — no humans, no faces. The content checker's treatment of human-containing reference videos (combined with the billing-on-failure behavior) makes those attempts expensive dry-holes. A clean way to bootstrap v2v is to first generate a product-only video via i2v or text-only mode, then use that as the reference for v2v calls.
+
+**⚠️ Seedance 2.0 `audioEnabled: true` + `referenceImages` 500 regression (observed 2026-04-09):**
+
+On **2026-04-09 evening**, calls combining `audioEnabled: true` with any non-empty `referenceImages` array started returning `HTTP 500 UNKNOWN_ERROR` deterministically. The exact same combo worked earlier the same day (tests #1–#3 in `logs/arcads-api.jsonl`). Sanity isolation:
+
+- `audioEnabled: true` alone (no refImages): ✅ works
+- `referenceImages` alone (audioEnabled: false): ✅ works
+- `audioEnabled: true` + `referenceImages`: ❌ 500 (not charged — create fails before billing)
+- `audioEnabled: true` + `referenceVideos` (1): ✅ **works** (test A, 2026-04-09) — regression is i2v-specific, v2v with audio is a viable workaround
+
+This is a server-side regression **specific to i2v + audio**. Before every fresh session, run a quick sanity probe with a minimal audio+image payload to check whether the issue has been resolved. While it's broken, use **v2v + audio** as the audio-output workaround: generate a product-only reference video first (i2v or text-only), then run v2v on top with `audioEnabled: true`.
+
+**⚠️ Seedance 2.0 `referenceVideos` count > 1 fails (confirmed 2026-04-09):**
+
+OpenAPI schema declares `max: 3` for `referenceVideos` on seedance-2.0, but **in practice 2 or 3 reference videos return `HTTP 500 UNKNOWN_ERROR` deterministically**. Only a single reference video (array of length 1) is currently accepted. Documented vs actual discrepancy — file with Arcads support.
+
+Workaround: if you want to blend multiple visual aesthetics, chain v2v calls — generate with ref video #1, then feed the output into a second v2v call with ref video #2, etc.
 
 **Per-model field compatibility:**
 
