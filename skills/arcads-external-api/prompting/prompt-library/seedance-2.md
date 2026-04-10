@@ -135,6 +135,7 @@ Pick the template that matches the user's goal, then read its file before compos
 | Studio lookbook with voiceover (polished, multi-look) | [seedance-2-studio-lookbook.md](seedance-2-studio-lookbook.md) | Voiceover narration over styled product shots |
 | Fast-paced feature walkthrough / demo | [seedance-2-feature-walkthrough.md](seedance-2-feature-walkthrough.md) | Feature-per-beat physical demos with dialogue |
 | **Reverse-engineer a reference video** into a reusable template | [../analyze-video/SKILL.md](../analyze-video/SKILL.md) | Extract frames → analyze style → generate new template |
+| **Clone a specific video ad** for a different product | [../clone-ad/SKILL.md](../clone-ad/SKILL.md) | Analyze source → adapt for user's product → generate |
 
 If none of the above fit, use the platform guide rules in this file directly and compose a custom prompt following the Subject + Action + Camera + Style + Constraints structure.
 

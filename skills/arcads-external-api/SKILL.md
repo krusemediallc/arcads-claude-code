@@ -37,6 +37,7 @@ All video models use `POST /v2/videos/generate` with the appropriate `model` val
 | **Seedance 2.0 studio lookbook** — polished, voiceover, multi-look | `POST /v2/videos/generate` with `model: "seedance-2.0"` | [seedance-2.md](prompting/prompt-library/seedance-2.md) + [seedance-2-studio-lookbook.md](prompting/prompt-library/seedance-2-studio-lookbook.md) |
 | **Seedance 2.0 feature walkthrough** — fast-paced feature demo | `POST /v2/videos/generate` with `model: "seedance-2.0"` | [seedance-2.md](prompting/prompt-library/seedance-2.md) + [seedance-2-feature-walkthrough.md](prompting/prompt-library/seedance-2-feature-walkthrough.md) |
 | **Reverse-engineer a video style** into a reusable Seedance 2.0 template | Follow the analyze-video skill | [prompting/analyze-video/SKILL.md](prompting/analyze-video/SKILL.md) |
+| **Clone/replicate an existing video ad** for a different product | Follow the clone-ad skill | [prompting/clone-ad/SKILL.md](prompting/clone-ad/SKILL.md) |
 | Raw **Sora 2** video from text (plus product) | `POST /v2/videos/generate` with `model: "sora2"` | [prompt-library/sora-2.md](prompting/prompt-library/sora-2.md) |
 | **Sora** remix of an existing asset | `POST /v1/sora2/remix/video` | [sora-2.md](prompting/prompt-library/sora-2.md) |
 | **Veo 3.1** video | `POST /v2/videos/generate` with `model: "veo31"` | [prompt-library/veo-3-1.md](prompting/prompt-library/veo-3-1.md) |
@@ -312,6 +313,7 @@ Details and checklist items: [prompting/prompt-library/nano-banana.md](prompting
   - [prompting/prompt-library/seedance-2-studio-lookbook.md](prompting/prompt-library/seedance-2-studio-lookbook.md) — studio lookbook with voiceover.
   - [prompting/prompt-library/seedance-2-feature-walkthrough.md](prompting/prompt-library/seedance-2-feature-walkthrough.md) — fast-paced feature walkthrough demo.
   - [prompting/analyze-video/SKILL.md](prompting/analyze-video/SKILL.md) — reverse-engineer a reference video into a reusable Seedance 2.0 prompting template.
+  - [prompting/clone-ad/SKILL.md](prompting/clone-ad/SKILL.md) — clone a reference video ad for a different product (end-to-end: analyze → adapt → generate).
 - **Other models:**
   - [prompting/prompt-library/influencer-recreation.md](prompting/prompt-library/influencer-recreation.md) — analyze a reference photo and recreate the influencer.
   - [prompting/prompt-library/ugc-selfie-style.md](prompting/prompt-library/ugc-selfie-style.md) — cross-model UGC guide (iPhone aesthetic, negative prompts, per-model formulas).
