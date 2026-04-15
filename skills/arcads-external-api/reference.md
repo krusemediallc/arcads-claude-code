@@ -198,28 +198,15 @@ Credits are charged at **create time**, BEFORE the content checker runs. If the 
 
 **Implication:** Before firing a Seedance 2.0 call with a new or modified prompt, sanity-check for anything that could trip a filter — especially on `v2v` calls where content checking appears stricter. If a 500 or failed status comes back on the first attempt, do **not** automatically retry the same payload — tighten the prompt language first.
 
-**⚠️ Seedance 2.0 v2v rejects reference videos containing human faces (confirmed 2026-04-09):**
+**~~⚠️ Seedance 2.0 v2v rejects reference videos containing human faces~~ — RESOLVED 2026-04-14:**
 
-Video-to-video calls (`referenceVideos`) with clips that contain people / faces consistently fail the content checker, even with sanitized documentary-style prompts. **3/3 correlation:**
+Previously (2026-04-09), v2v calls with clips containing people/faces consistently failed the content checker (3/3 failures). **As of 2026-04-14, this is fixed.** Test #2 successfully generated a v2v video using a reference video containing a person speaking (Astrid i2v output as ref, `creditsCharged: 720` for 5s). v2v with people/faces in reference videos is now viable.
 
-| Ref video | People in frame | Result |
-|---|---|---|
-| valentina-hat-video-4-driving | yes | content check failed (1.5 cr charged) |
-| astrid-veo31-720p-motion | yes | content check failed (1.5 cr charged) |
-| test08-text-only-16x9 (product-only) | no | generated successfully (1.5 cr) |
+**~~⚠️ Seedance 2.0 `audioEnabled: true` + `referenceImages` 500 regression~~ — RESOLVED 2026-04-14:**
 
-**Rule:** On `v2v` calls, use reference videos that show the **product, object, or abstract footage** only — no humans, no faces. The content checker's treatment of human-containing reference videos (combined with the billing-on-failure behavior) makes those attempts expensive dry-holes. A clean way to bootstrap v2v is to first generate a product-only video via i2v or text-only mode, then use that as the reference for v2v calls.
+Previously (2026-04-09 evening), `audioEnabled: true` + `referenceImages` returned HTTP 500 deterministically. **As of 2026-04-14, this is fixed.** Tests #1a (5s, `creditsCharged: 240`) and #3 (8s, `creditsCharged: 384`) both generated successfully with `audioEnabled: true` + person reference image.
 
-**⚠️ Seedance 2.0 `audioEnabled: true` + `referenceImages` 500 regression (observed 2026-04-09):**
-
-On **2026-04-09 evening**, calls combining `audioEnabled: true` with any non-empty `referenceImages` array started returning `HTTP 500 UNKNOWN_ERROR` deterministically. The exact same combo worked earlier the same day (tests #1–#3 in `logs/arcads-api.jsonl`). Sanity isolation:
-
-- `audioEnabled: true` alone (no refImages): ✅ works
-- `referenceImages` alone (audioEnabled: false): ✅ works
-- `audioEnabled: true` + `referenceImages`: ❌ 500 (not charged — create fails before billing)
-- `audioEnabled: true` + `referenceVideos` (1): ✅ **works** (test A, 2026-04-09) — regression is i2v-specific, v2v with audio is a viable workaround
-
-This is a server-side regression **specific to i2v + audio**. Before every fresh session, run a quick sanity probe with a minimal audio+image payload to check whether the issue has been resolved. While it's broken, use **v2v + audio** as the audio-output workaround: generate a product-only reference video first (i2v or text-only), then run v2v on top with `audioEnabled: true`.
+**Note:** The first attempt on 2026-04-14 with a stale presigned URL still returned 500 — always use a freshly obtained presigned URL (within 10 min of the `expiresIn` window).
 
 **⚠️ Seedance 2.0 `referenceVideos` count > 1 fails (confirmed 2026-04-09):**
 

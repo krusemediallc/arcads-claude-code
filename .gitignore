@@ -7,3 +7,10 @@ MASTER_CONTEXT.md
 .DS_Store
 *.log
 outputs/
+output/
+references/youtube thumbnail/
+# Disposable one-off thumbnail iteration scripts (not the canonical skill script)
+scripts/generate-thumbnails.sh
+scripts/generate-thumbnails-*.sh
+scripts/generate-ab-variants*.sh
+scripts/regen-*.sh
