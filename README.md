@@ -1,6 +1,6 @@
 # Arcads AI Video — Agent Skill Pack
 
-Create AI marketing videos and images using your [Arcads](https://arcads.ai) account, powered by AI agents in **Claude Code** or **Cursor**. Supports Sora 2, Veo 3.1, Kling 3.0, and Nano Banana.
+Create AI marketing videos and images using your [Arcads](https://arcads.ai/?via=caleb) account, powered by AI agents in **Claude Code** or **Cursor**. Supports Sora 2, Veo 3.1, Kling 3.0, and Nano Banana.
 
 ## Get started (5 minutes)
 
@@ -18,6 +18,7 @@ cd arcads-agent-skills
 ```
 
 This will:
+- If you need an Arcads account first, sign up here: [arcads.ai/?via=caleb](https://arcads.ai/?via=caleb)
 - Ask for your **Arcads API key** (find it at [app.arcads.ai/settings/api](https://app.arcads.ai/settings/api))
 - Save it securely in `.env` (never committed to git)
 - Verify your connection to Arcads
@@ -79,6 +80,8 @@ Uses Sora 2 with your product photo as a style reference to generate a video dir
 ## Your API key
 
 Your key authenticates with the Arcads API. During setup you paste it once and the agent uses it from `.env` automatically. You never need to paste it into chat.
+
+Need an Arcads account first? Create one here: **[https://arcads.ai/?via=caleb](https://arcads.ai/?via=caleb)**
 
 Find your key: **[Arcads Dashboard > Settings > API](https://app.arcads.ai/settings/api)**
 
