@@ -16,7 +16,8 @@ elif [[ -n "${ARCADS_API_KEY:-}" ]] && [[ "$ARCADS_API_KEY" != "your_key_here" ]
   AUTH_HEADER="Authorization: Basic $(printf '%s:' "$ARCADS_API_KEY" | base64)"
 else
   echo "No valid credentials found. Edit .env with your Arcads Basic auth header." >&2
-  echo "Find it at: https://app.arcads.ai/settings/api" >&2
+  echo "Need an Arcads account first? Sign up here: https://arcads.ai/?via=caleb" >&2
+  echo "Then find your Basic auth header at: https://app.arcads.ai/settings/api" >&2
   exit 1
 fi
 
