@@ -1,24 +1,32 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
-# Reusable YouTube thumbnail batch generator (Nano Banana 2 via Arcads API)
+# Reusable YouTube thumbnail batch generator (Nano Banana via kie.ai API)
 #
 # This is a TEMPLATE. Copy to scripts/generate-thumbnails-vN.sh and customize:
-#   1. Update REF_BASE and COMMON_REFS array with your reference file paths
+#   1. Update REFERENCE_URLS array with your PUBLIC HTTPS URLs (see hosting note)
 #   2. Replace PROMPTS array with your composed prompts
-#   3. Run: bash scripts/generate-thumbnails-vN.sh > output/run.log 2>&1 &
-#   4. Monitor: tail -F output/run.log | grep -E "DONE|FAILED|Asset"
+#   3. (Optional) switch MODEL to "nano-banana-pro" for 4K output
+#   4. Run: bash scripts/generate-thumbnails-vN.sh > output/run.log 2>&1 &
+#   5. Monitor: tail -F output/run.log | grep -E "DONE|FAILED|Task"
+#
+# Hosting note:
+#   kie.ai does NOT accept file uploads or base64. Every entry in
+#   REFERENCE_URLS must be a publicly reachable HTTPS URL returning an
+#   image (Imgur direct link, Cloudflare R2 public bucket, Supabase Storage,
+#   GitHub raw, etc.). See ../../kie-ai-external-api/SKILL.md →
+#   "Reference images: hosting and public URLs".
 #
 # Features:
-#   - Image upscaling (Lanczos to 1080px longest side, RGB JPEG)
-#   - Presigned URL upload + S3 PUT
-#   - Fresh upload per generation (avoids 500 errors from reused references)
+#   - POST /api/v1/jobs/createTask with {model, input}
 #   - Parallel firing (default: all variations in parallel)
 #   - Retry on failure
-#   - Asset polling and download
+#   - Poll GET /api/v1/jobs/recordInfo?taskId=... until done
+#   - Append log entry to logs/kie-api.jsonl (see logs/README.md)
+#   - Downloads result image from data.response.resultUrls[0]
 #
 # Requires:
-#   - .env with ARCADS_BASIC_AUTH and ARCADS_API_KEY
-#   - Python 3 with PIL/Pillow installed
+#   - .env with KIE_API_KEY
+#   - Python 3 (for JSON handling)
 #   - macOS bash 3.2+ or any bash 4+
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -26,106 +34,92 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 source .env
 
+: "${KIE_API_KEY:?KIE_API_KEY not set in .env}"
+API="${KIE_BASE_URL:-https://api.kie.ai}"
+
 # ─── CONFIG ─────────────────────────────────────────────────────────────────
-API="https://external-api.arcads.ai"
-PRODUCT_ID="REPLACE_WITH_YOUR_PRODUCT_ID"  # from MASTER_CONTEXT.md
-MODEL="nano-banana-2"
-ASPECT="16:9"  # 1:1, 16:9, or 9:16
+MODEL="nano-banana-2"            # or "nano-banana-pro" for 4K
+ASPECT="16:9"                    # 1:1, 16:9, 9:16, 3:4, 4:3
 OUTPUT_DIR="output/thumbnails-$(date +%Y%m%d-%H%M%S)"
+LOG_FILE="$(pwd)/../../logs/kie-api.jsonl"
 mkdir -p "$OUTPUT_DIR"
-TMP_DIR="$OUTPUT_DIR/.tmp"
-mkdir -p "$TMP_DIR"
 
-# ─── REFERENCE IMAGES ───────────────────────────────────────────────────────
-# Use absolute paths (filenames with spaces are fine).
+# ─── REFERENCE URLS ─────────────────────────────────────────────────────────
+# Public HTTPS URLs only — kie.ai does not host your images.
 # Aim for 5+ face references for good likeness alignment.
-REF_BASE="$(pwd)/references/youtube thumbnail"
+# Max 14 entries (Nano Banana image_input[] limit).
 
-declare -a COMMON_REFS=(
-  "${REF_BASE}/face/headshot.png"
-  "${REF_BASE}/face/three-quarter.png"
-  "${REF_BASE}/face/close-up.png"
-  "${REF_BASE}/face/smile.png"
-  "${REF_BASE}/face/neutral.png"
-  "${REF_BASE}/logos/brand-1.png"
-  "${REF_BASE}/logos/brand-2.png"
+declare -a REFERENCE_URLS=(
+  "https://REPLACE_WITH_YOUR_HOST/face/headshot.jpg"
+  "https://REPLACE_WITH_YOUR_HOST/face/three-quarter.jpg"
+  "https://REPLACE_WITH_YOUR_HOST/face/close-up.jpg"
+  "https://REPLACE_WITH_YOUR_HOST/face/smile.jpg"
+  "https://REPLACE_WITH_YOUR_HOST/face/neutral.jpg"
+  "https://REPLACE_WITH_YOUR_HOST/logos/brand-1.png"
+  "https://REPLACE_WITH_YOUR_HOST/logos/brand-2.png"
   # Add product photos, comparison material, etc. as needed (max 14 total)
 )
 
-# Verify all references exist before starting
-for f in "${COMMON_REFS[@]}"; do
-  if [ ! -f "$f" ]; then
-    echo "MISSING: $f" >&2
+# Quick sanity-check the URLs before burning generations.
+for u in "${REFERENCE_URLS[@]}"; do
+  if [[ "$u" == *"REPLACE_WITH_YOUR_HOST"* ]]; then
+    echo "FAIL: Update REFERENCE_URLS with real public HTTPS URLs first." >&2
     exit 1
+  fi
+  code=$(curl -sS -o /dev/null -w "%{http_code}" -I "$u" || echo "000")
+  if [ "$code" != "200" ]; then
+    echo "WARN: $u returned HTTP $code (expected 200). Continuing anyway." >&2
   fi
 done
 
+# Build the JSON array of URLs once — same refs used for every generation.
+REF_JSON=$(python3 -c "
+import json, sys
+print(json.dumps([$(printf '\"%s\",' "${REFERENCE_URLS[@]}" | sed 's/,$//')]))
+")
+
 # ─── HELPERS ────────────────────────────────────────────────────────────────
 
-# Upscale image to ≥1080px longest side and convert to RGB JPEG.
-# Required because Nano Banana 2 rejects images <1080px with 422.
-prepare_image() {
-  python3 - "$1" "$2" <<'PY'
-import sys
-from PIL import Image
-inp, out = sys.argv[1], sys.argv[2]
-img = Image.open(inp).convert("RGB")
-w, h = img.size
-longest = max(w, h)
-if longest < 1080:
-    scale = 1080.0 / longest
-    img = img.resize((int(w*scale), int(h*scale)), Image.LANCZOS)
-img.save(out, "JPEG", quality=92)
+# Append a log line to logs/kie-api.jsonl. Never logs prompt text, URLs, or key.
+# Args: task_id prompt state generation_time_sec result_count error
+log_entry() {
+  local task_id="$1" prompt="$2" state="$3" gen_sec="$4" result_count="$5" error="$6"
+  local word_count
+  word_count=$(echo "$prompt" | wc -w | tr -d ' ')
+  python3 - "$task_id" "$MODEL" "$ASPECT" "${#REFERENCE_URLS[@]}" "$word_count" "$state" "$gen_sec" "$result_count" "$error" "$LOG_FILE" <<'PY'
+import json, sys, datetime, os
+task_id, model, aspect, ref_count, word_count, state, gen_sec, result_count, error, log_file = sys.argv[1:11]
+success_flag = {"success": 1, "pending": 0, "failed": 2}.get(state, 0)
+entry = {
+  "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+  "endpoint": "POST /api/v1/jobs/createTask",
+  "model": model,
+  "taskId": task_id,
+  "request": {
+    "aspect_ratio": aspect,
+    "imageInputCount": int(ref_count),
+    "promptWordCount": int(word_count),
+  },
+  "response": {
+    "successFlag": success_flag,
+    "state": state,
+    "generationTimeSec": int(gen_sec) if gen_sec else None,
+    "resultUrlsCount": int(result_count) if result_count else 0,
+    "error": error or None,
+  },
+}
+os.makedirs(os.path.dirname(log_file), exist_ok=True)
+with open(log_file, "a") as f:
+  f.write(json.dumps(entry) + "\n")
 PY
 }
 
-# Get presigned upload URL, PUT the file, return the filePath string.
-upload_file() {
-  local file="$1"
-  local prepared="$TMP_DIR/$(basename "$file" | tr ' ' '_')_$$_$RANDOM.jpg"
-  prepare_image "$file" "$prepared"
-
-  local presign_resp presigned_url file_path
-  presign_resp=$(curl -sS -X POST \
-    -H "Authorization: $ARCADS_BASIC_AUTH" \
-    -H "Content-Type: application/json" \
-    -d '{"fileType":"image/jpeg"}' \
-    "$API/v1/file-upload/get-presigned-url")
-  presigned_url=$(echo "$presign_resp" | python3 -c "import json,sys; print(json.load(sys.stdin).get('presignedUrl',''))")
-  file_path=$(echo "$presign_resp" | python3 -c "import json,sys; print(json.load(sys.stdin).get('filePath',''))")
-
-  if [ -z "$presigned_url" ] || [ -z "$file_path" ]; then
-    echo "PRESIGN FAIL: $presign_resp" >&2
-    return 1
-  fi
-
-  curl -sS -X PUT \
-    -H "Content-Type: image/jpeg" \
-    --data-binary "@$prepared" \
-    "$presigned_url" >/dev/null
-  echo "$file_path"
-}
-
-# Upload all common references and return a JSON array of filePath strings.
-# CRITICAL: Always upload fresh per generation. Re-using filePaths across
-# generations causes HTTP 500 UNKNOWN_ERROR.
-upload_all_fresh() {
-  local out=""
-  for f in "${COMMON_REFS[@]}"; do
-    local fp
-    fp=$(upload_file "$f") || return 1
-    if [ -z "$out" ]; then out="\"$fp\""; else out="$out,\"$fp\""; fi
-  done
-  echo "[$out]"
-}
-
-# Generate a single thumbnail: upload refs → submit → poll → download.
+# Generate a single thumbnail: submit → poll → download.
 generate_one() {
   local idx=$1
   local prompt=$2
-  echo "[#$idx] Uploading fresh references..."
-  local ref_json
-  ref_json=$(upload_all_fresh) || { echo "[#$idx] Upload failed"; return 1; }
+  local started
+  started=$(date +%s)
   echo "[#$idx] Submitting generation..."
 
   # Build request body via Python to handle JSON encoding safely.
@@ -133,56 +127,104 @@ generate_one() {
   body=$(python3 -c "
 import json
 print(json.dumps({
-  'productId': '$PRODUCT_ID',
-  'prompt': '''$prompt'''.strip(),
   'model': '$MODEL',
-  'aspectRatio': '$ASPECT',
-  'referenceImages': $ref_json
+  'input': {
+    'prompt': '''$prompt'''.strip(),
+    'image_input': json.loads('''$REF_JSON'''),
+    'aspect_ratio': '$ASPECT',
+  },
 }))
 ")
 
-  local response asset_id
+  local response task_id
   response=$(curl -sS \
-    -H "Authorization: $ARCADS_BASIC_AUTH" \
+    -H "Authorization: Bearer $KIE_API_KEY" \
     -H "Content-Type: application/json" \
     -d "$body" \
-    "$API/V2/images/generate" 2>&1)
+    "$API/api/v1/jobs/createTask" 2>&1)
 
-  asset_id=$(echo "$response" | python3 -c "
-import json,sys
-d=json.load(sys.stdin)
-print(d.get('id','') or d.get('data',{}).get('id',''))
+  task_id=$(echo "$response" | python3 -c "
+import json, sys
+try:
+    d = json.load(sys.stdin)
+    print(d.get('data', {}).get('taskId', '') or d.get('taskId', ''))
+except Exception:
+    print('')
 " 2>/dev/null || echo "")
 
-  if [ -z "$asset_id" ]; then
+  if [ -z "$task_id" ]; then
     echo "[#$idx] ERROR: $response"
     echo "$response" > "$OUTPUT_DIR/${idx}_error.json"
+    log_entry "" "$prompt" "failed" "" "" "createTask returned no taskId"
     return 1
   fi
 
-  echo "[#$idx] Asset $asset_id — polling..."
-  local poll status url
+  log_entry "$task_id" "$prompt" "pending" "" "" ""
+  echo "[#$idx] Task $task_id — polling..."
+
+  local poll success_flag state url_count url
   for attempt in $(seq 1 60); do
     sleep 5
-    poll=$(curl -sS -H "Authorization: $ARCADS_BASIC_AUTH" "$API/v1/assets/$asset_id" 2>&1)
-    status=$(echo "$poll" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('status','unknown'))" 2>/dev/null || echo "unknown")
+    poll=$(curl -sS \
+      -H "Authorization: Bearer $KIE_API_KEY" \
+      "$API/api/v1/jobs/recordInfo?taskId=$task_id" 2>&1)
+    success_flag=$(echo "$poll" | python3 -c "
+import json, sys
+try:
+    d = json.load(sys.stdin)
+    print(d.get('data', {}).get('successFlag', ''))
+except Exception:
+    print('')
+" 2>/dev/null || echo "")
 
-    if [ "$status" = "generated" ]; then
-      url=$(echo "$poll" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('url',''))" 2>/dev/null || echo "")
-      echo "[#$idx] DONE!"
-      echo "$poll" > "$OUTPUT_DIR/${idx}_asset.json"
+    if [ "$success_flag" = "1" ]; then
+      url=$(echo "$poll" | python3 -c "
+import json, sys
+try:
+    d = json.load(sys.stdin)
+    urls = d.get('data', {}).get('response', {}).get('resultUrls', []) or []
+    print(urls[0] if urls else '')
+except Exception:
+    print('')
+" 2>/dev/null || echo "")
+      url_count=$(echo "$poll" | python3 -c "
+import json, sys
+try:
+    d = json.load(sys.stdin)
+    print(len(d.get('data', {}).get('response', {}).get('resultUrls', []) or []))
+except Exception:
+    print(0)
+" 2>/dev/null || echo "0")
+      local ended=$(date +%s)
+      local gen_sec=$((ended - started))
+      echo "[#$idx] DONE in ${gen_sec}s"
+      echo "$poll" > "$OUTPUT_DIR/${idx}_task.json"
       if [ -n "$url" ]; then
         curl -sS -o "$OUTPUT_DIR/${idx}_thumbnail.png" "$url"
         echo "[#$idx] Downloaded"
       fi
+      log_entry "$task_id" "$prompt" "success" "$gen_sec" "$url_count" ""
       return 0
-    elif [ "$status" = "failed" ]; then
-      echo "[#$idx] FAILED: $poll"
+    elif [ "$success_flag" = "2" ] || [ "$success_flag" = "3" ]; then
+      local err
+      err=$(echo "$poll" | python3 -c "
+import json, sys
+try:
+    d = json.load(sys.stdin)
+    print(d.get('data', {}).get('error', '') or d.get('msg', ''))
+except Exception:
+    print('')
+" 2>/dev/null || echo "")
+      echo "[#$idx] FAILED: $err"
       echo "$poll" > "$OUTPUT_DIR/${idx}_failed.json"
+      local ended=$(date +%s)
+      log_entry "$task_id" "$prompt" "failed" "$((ended - started))" "0" "$err"
       return 1
     fi
   done
   echo "[#$idx] TIMEOUT after 300s"
+  local ended=$(date +%s)
+  log_entry "$task_id" "$prompt" "failed" "$((ended - started))" "0" "polling timeout"
   return 1
 }
 
@@ -213,13 +255,15 @@ declare -a PROMPTS=(
 
 echo "═══════════════════════════════════════"
 echo "Generating ${#PROMPTS[@]} thumbnails in parallel..."
+echo "Model: $MODEL   Aspect: $ASPECT"
+echo "References: ${#REFERENCE_URLS[@]} public URLs"
 echo "Output: $OUTPUT_DIR"
 echo "═══════════════════════════════════════"
 
 for i in "${!PROMPTS[@]}"; do
   idx=$((i + 1))
   run_with_retry "$idx" "${PROMPTS[$i]}" &
-  sleep 0.3  # small stagger to avoid presign endpoint race
+  sleep 0.3  # small stagger to avoid per-second rate-limit races
 done
 
 wait

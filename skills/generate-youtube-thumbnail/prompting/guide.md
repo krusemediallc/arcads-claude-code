@@ -162,8 +162,8 @@ For symmetrical layouts, describe both:
 - "To his RIGHT side at chest level is a large rounded-square app icon containing [other logo description] — use the [other logo] reference exactly"
 
 For corner placement:
-- "Orange Claude Code starburst logo glows in the upper-left corner"
-- "Black Arcads A logo glows in the upper-right corner"
+- "[Primary brand logo] glows in the upper-left corner"
+- "[Secondary brand logo] glows in the upper-right corner"
 
 ### Phone mockups
 

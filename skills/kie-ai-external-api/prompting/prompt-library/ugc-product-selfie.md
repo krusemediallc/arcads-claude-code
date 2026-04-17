@@ -4,27 +4,27 @@
 
 ## Required inputs
 
-| Input | Source | Role in `referenceImages` |
-|-------|--------|---------------------------|
+| Input | Source | Role in `input.image_input` |
+|-------|--------|-----------------------------|
 | **Character hero** | `references/influencers/{name}/01-hero-front.jpg` | Identity — face, hair, build, skin |
 | **Product photo** | `references/products/{product}.png` | What they're holding/using |
 | **Style references** (2-4) | `references/aesthetics/{style}/` | Visual vibe — lighting, framing, quality |
 
-All inputs are uploaded via `POST /v1/file-upload/get-presigned-url` → `PUT` to S3 → passed as `referenceImages` array.
+All inputs must be hosted at a public HTTPS URL (see main SKILL.md → "Reference images: hosting and public URLs") and passed as the `input.image_input` array.
 
 ## Reference image order
 
 ```
-referenceImages = [
-  character_hero_filePath,    # position 1: identity anchor
-  product_filePath,           # position 2: product context
-  style_ref_1_filePath,       # position 3+: style/vibe
-  style_ref_2_filePath,
-  style_ref_3_filePath,       # 3 style refs is the sweet spot
+input.image_input = [
+  character_hero_url,    # position 1: identity anchor
+  product_url,           # position 2: product context
+  style_ref_1_url,       # position 3+: style/vibe
+  style_ref_2_url,
+  style_ref_3_url,       # 3 style refs is the sweet spot
 ]
 ```
 
-Nano Banana supports up to 14 `referenceImages`. The character hero should always be first (strongest identity signal). 3 style references is the sweet spot — enough to establish the vibe without diluting the character identity.
+Nano Banana supports up to 14 entries in `image_input`. The character hero should always be first (strongest identity signal). 3 style references is the sweet spot — enough to establish the vibe without diluting the character identity.
 
 ## Prompt formula
 
@@ -81,7 +81,7 @@ woman with voluminous curly honey-brown hair, warm tan skin with visible
 pores, slight unevenness in skin tone, minor undereye shadows, a hint of
 shine on the nose and forehead from natural oils — beauty mark on right
 cheek, green eyes. She is on her couch holding up a tall purple and gold
-Arcads Artificial Cola can, talking mid-sentence to camera with a candid
+Nova Artificial Cola can, talking mid-sentence to camera with a candid
 unposed expression — mouth slightly open, caught between words, not
 smiling perfectly.
 
@@ -109,14 +109,14 @@ should feel raw, unpolished, and authentically amateur.
 3. **Style:** Default to `references/aesthetics/ugc-selfie/` for UGC. If other style folders exist, ask user which vibe. Load 3 images from the chosen style folder (pick the most varied ones if more than 3 exist).
 4. **Scene:** Ask for the scene/setting (bedroom, car, kitchen, outdoors, etc.) and outfit. If the user doesn't specify, pick a natural casual setting.
 
-### Step 2: Upload all reference images
+### Step 2: Host all reference images
 
-Upload all files via presigned URL:
+Host all files at public HTTPS URLs (see main SKILL.md → "Reference images: hosting and public URLs"):
 - 1 character hero
 - 1 product photo
 - 2-4 style references (3 is ideal)
 
-Total: 4-6 `referenceImages` per call.
+Total: 4-6 entries in `input.image_input` per call.
 
 ### Step 3: Compose the prompt
 
@@ -132,14 +132,13 @@ Total: 4-6 `referenceImages` per call.
 
 ### Step 4: Generate
 
-Call `POST /V2/images/generate` with:
-- `productId` and `projectId`
+Call `POST /api/v1/jobs/createTask` with:
 - `model`: `nano-banana-2`
-- `prompt`: the composed prompt
-- `aspectRatio`: `9:16`
-- `referenceImages`: array of all uploaded `filePath` values
+- `input.prompt`: the composed prompt
+- `input.aspect_ratio`: `9:16`
+- `input.image_input`: array of all hosted public HTTPS URLs
 
-Default to **3 variations** so the user can compare. Fire all 3 in sequence with a small delay.
+Default to **3 variations** so the user can compare. kie.ai has no variation count field — fire 3 parallel `createTask` calls with a small delay.
 
 ### Step 5: Present and iterate
 
@@ -178,10 +177,12 @@ Style references live in `references/aesthetics/{style}/`. Each folder should co
 
 To add a new style: create the folder, drop in 3-5 reference images, and the agent will automatically use them when you ask for that style.
 
-## Credit cost
+## Cost
+
+kie.ai bills per generation in USD. Check `MASTER_CONTEXT.md` for the Nano Banana 2 rate — ask the user if it isn't listed.
 
 ```
-3 variations × Nano Banana 2 = 0.09 credits ($0.90)
+3 variations × Nano Banana 2 = $<rate × 3>
 ```
 
 Plus any retries for QA issues. Show cost and get confirmation before generating.
@@ -198,14 +199,24 @@ Plus any retries for QA issues. Show cost and get confirmation before generating
 
 ## Combining with video
 
-Once the user approves a UGC still, it can be used as a `startFrame` for video generation.
+Once the user approves a UGC still, it can be used as a first-frame reference for video generation.
 
 ### Veo 3.1 (RECOMMENDED for UGC stills → video)
 
-**Use `startFrame`** — the video literally starts from the approved image. Face, pose, scene, product placement are all preserved from frame one. This is the correct path for animating UGC stills.
+Veo's `FIRST_AND_LAST_FRAMES_2_VIDEO` mode starts the video literally from the approved image. Face, pose, scene, product placement are all preserved from frame one. This is the correct path for animating UGC stills.
 
-1. Upload approved still via `POST /v1/file-upload/get-presigned-url` → `PUT` to S3 → get `filePath`
-2. `POST /v1/veo31/generate/video` with `startFrame: filePath` + dialogue in `prompt`
+1. Host approved still at a public HTTPS URL (see main SKILL.md → "Reference images: hosting and public URLs")
+2. `POST /api/v1/veo/generate` with:
+   ```json
+   {
+     "prompt": "<dialogue + motion cues>",
+     "model": "veo3",
+     "generationType": "FIRST_AND_LAST_FRAMES_2_VIDEO",
+     "imageUrls": ["<stillUrl>"],
+     "aspect_ratio": "9:16",
+     "resolution": "720p"
+   }
+   ```
 3. **Resolution:** Default to `720p` — 4K and 1080p show no visible quality difference for UGC-style content and produce 3-8x larger files. Use `1080p` only if the user specifically requests higher resolution.
 4. **Human motion cues (CRITICAL):** Always include at least 3-4 natural movement cues in the prompt. Without these, the video will look like a frozen mannequin staring at camera. Pick from:
    - Eye behavior: "briefly breaks eye contact, glances down at the product, then looks back at camera"
@@ -215,11 +226,11 @@ Once the user approves a UGC still, it can be used as a `startFrame` for video g
 5. **ALWAYS end prompt with:** `"No subtitles, no captions, no text overlays."`
 6. See [ugc-selfie-style.md](ugc-selfie-style.md) for full UGC video prompting formula and cue library
 
-### Sora 2 (NOT recommended for UGC stills → video)
+### Sora 2 (image-to-video mode)
 
-Sora 2's `refImageAsBase64` is a **style/mood reference**, not a literal starting frame. It will generate the video primarily from the text prompt and use the image as loose inspiration only. The character's face, pose, and scene will NOT match the approved still.
+Sora 2's `first_frame_url` on the `sora-2-image-to-video` model uses the image as the literal starting frame. Use this when you want Sora's motion quality with the approved still's composition preserved.
 
-**Only use Sora 2 when:**
-- You need longer duration (up to 20s) and don't need exact frame-one fidelity
-- You're generating from a text prompt only (no starting frame)
-- The image is meant as a style reference, not a literal reproduction
+1. Host approved still at a public HTTPS URL
+2. `POST /api/v1/jobs/createTask` with `model: "sora-2-image-to-video"` and `input.first_frame_url: "<stillUrl>"`
+
+If you only have a mood reference (not a literal starting frame), use `sora-2-text-to-video` and describe the composition in the prompt instead.

@@ -6,7 +6,7 @@ alwaysApply: true
 # Project context
 
 - If `.env` or `MASTER_CONTEXT.md` do not exist, tell the user to run `./scripts/setup.sh`.
-- At the **start** of substantive work in this repo, read **MASTER_CONTEXT.md** at the repository root for brand voice, credit costs, default product, and API learnings.
-- If `MASTER_CONTEXT.md` has empty fields (credit costs, default product), offer to populate them — ask the user and write the values back.
-- After **significant** changes (new workflows, verified Arcads behaviors, brand updates), append a short **dated** entry to the Changelog section in **MASTER_CONTEXT.md**.
-- For Arcads HTTP usage, prompts, and polling, follow **`.cursor/skills/arcads-external-api/SKILL.md`** and linked **reference.md**.
+- At the **start** of substantive work in this repo, read **MASTER_CONTEXT.md** at the repository root for brand voice, cost rates, preferred image host, and API learnings.
+- If `MASTER_CONTEXT.md` has empty fields (cost rates, preferred host, brand voice), offer to populate them — ask the user and write the values back.
+- After **significant** changes (new workflows, verified kie.ai behaviors, brand updates), append a short **dated** entry to the Changelog section in **MASTER_CONTEXT.md**.
+- For kie.ai HTTP usage, prompts, and polling, follow **`.cursor/skills/kie-ai-external-api/SKILL.md`** and linked **reference.md**.

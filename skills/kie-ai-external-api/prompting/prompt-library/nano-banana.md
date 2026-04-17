@@ -1,43 +1,37 @@
-# Nano Banana — prompts for Arcads
+# Nano Banana — prompts for kie.ai
 
 **Vendor guide:** [Google Cloud — Ultimate prompting guide for Nano Banana](https://cloud.google.com/blog/products/ai-machine-learning/ultimate-prompting-guide-for-nano-banana)
 
-## Arcads API endpoint
+## kie.ai API endpoint
 
-**Image generation:** `POST /V2/images/generate` (note uppercase V2).
+**Image generation:** `POST /api/v1/jobs/createTask` with a Nano Banana model slug.
 
-This is the dedicated Nano Banana route for still-image generation. Use it for:
+Use it for:
 - Influencer recreation stills (see [influencer-recreation.md](influencer-recreation.md))
 - Product showcase starting frames (see [product-showcase.md](product-showcase.md))
 - Standalone Nano Banana images (product heroes, lifestyle shots, etc.)
 
-Asset types `nano-banana` and `nano-banana-2` appear on `AssetResponseDto`. Poll with `GET /v1/assets/{id}` until `status` is `generated`.
+Poll `GET /api/v1/jobs/recordInfo?taskId=<id>` until `status` is `generated` (or the kie.ai equivalent success state).
 
-For **video** generation via Nano Banana, use `POST /v1/b-roll` or `POST /v1/scene` — model routing may be workspace- or server-side.
-
-## Model selection (`model` field on `POST /V2/images/generate`)
-
-The Arcads OpenAPI enum (`CreateImageDto.model`) only has two Nano Banana strings: `nano-banana` and `nano-banana-2`. In this repo we use:
+## Model selection (`model` field on `createTask`)
 
 | User-facing name | API `model` value | When to use |
 |------------------|-------------------|-------------|
 | **Nano Banana 2** (default) | `nano-banana-2` | Use unless the user asks for Pro. |
-| **Nano Banana Pro** (optional) | `nano-banana` | When the user explicitly wants Pro / the first-gen Nano Banana engine. |
+| **Nano Banana Pro** (optional) | `nano-banana-pro` | When the user explicitly wants Pro. |
 
 **Agent behavior:** Default to `nano-banana-2`. Before the first image call in a session, ask once: *"Use default Nano Banana 2, or Nano Banana Pro?"* If they do not care, use `nano-banana-2`.
 
-**Credits:** Pricing may differ per model — use `data.creditsCharged` on the asset response and the user's cost table in `MASTER_CONTEXT.md`. (Example observed: 0.03 for `nano-banana` in one test.)
+**Credits:** kie.ai bills per generation in USD. Check the user's cost table in `MASTER_CONTEXT.md` for the exact rate — ask if it isn't listed.
 
-## Request body (`CreateImageDto` / image generate) — confirmed 2026-04-01
+## Request body (kie.ai `{model, input}` wrapper)
 
 See [reference.md](../../reference.md) for the full schema. Key fields:
 
-- `productId` (required) — UUID of the Arcads product
-- `prompt` (required) — follow the template and checklist below
-- `model` (required) — for Nano Banana stills, default **`nano-banana-2`**; optional **`nano-banana`** (Nano Banana Pro). Other image engines: `gpt-image`, `soul`, `grok_image`, `seedream`, `seedream_5_lite`
-- `aspectRatio` (required) — `1:1`, `16:9`, `9:16`
-- `referenceImages` (optional) — array of `filePath` strings from presigned upload (OpenAPI); see [reference.md](../../reference.md) for reference limits per model
-- `projectId` (optional) — assign to a session project
+- `model` (required) — `nano-banana-2` (default) or `nano-banana-pro`
+- `input.prompt` (required) — follow the template and checklist below
+- `input.aspect_ratio` — `1:1`, `16:9`, `9:16`
+- `input.image_input` (optional) — array of public HTTPS URLs for reference images. Base64 is not supported.
 
 **Generation time:** ~35 seconds typical for Nano Banana images (varies).
 
@@ -46,7 +40,7 @@ See [reference.md](../../reference.md) for the full schema. Key fields:
 - [ ] Follow the vendor guide for framing **subject**, **style**, and **constraints**.
 - [ ] State whether the output should be **photoreal**, **illustration**, **product hero**, etc.
 - [ ] Call out **text on image** only if the pipeline supports legible text for your use case.
-- [ ] Use `POST /V2/images/generate` (uppercase V2) — not `/v2/`.
+- [ ] All reference image URLs are public HTTPS (not base64, not local paths).
 - [ ] After `status: generated`, run **post-generation QA** (see below) before treating the image as final.
 
 ### Post-generation QA (mandatory)
@@ -63,11 +57,11 @@ If anything looks off, follow **Regeneration loop** — do not pass a defective 
 
 ### Regeneration loop
 
-1. **Inspect** the image from the asset `url` (or local download).
+1. **Inspect** the image from the asset URL (or local download).
 2. If **defective:** compose a **new prompt** that names the fix (e.g. "exactly two hands visible, five fingers each," "single coherent face," "product label sharp and readable"). Keep the rest of the creative intent; add corrective constraints rather than resending the exact same JSON.
-3. Call `POST /V2/images/generate` again with the same `model`, `aspectRatio`, `productId`, `projectId`, and reference inputs as before unless you are intentionally changing them.
+3. Call `POST /api/v1/jobs/createTask` again with the same `model`, `aspect_ratio`, and `image_input` reference inputs as before unless you are intentionally changing them.
 4. **Cap:** at most **2** regeneration attempts after the first image (**3** total generations per deliverable). After that, describe remaining issues, list asset URLs, and ask the user how to proceed.
-5. **Credits:** each generation bills separately — note cumulative `creditsCharged` when reporting. QA retries use the [QA-fix exception](../../SKILL.md) (no second pre-confirmation, but still billed).
+5. **Cost:** each generation bills separately — note cumulative cost when reporting. QA retries use the [QA-fix exception](../../SKILL.md) (no second pre-confirmation, but still billed).
 
 Full agent steps: [SKILL.md — Generated image QA](../../SKILL.md#generated-image-qa-mandatory).
 
@@ -80,20 +74,21 @@ Full agent steps: [SKILL.md — Generated image QA](../../SKILL.md#generated-ima
 ## Example
 
 ```text
-Minimal product hero: matte black earbuds on concrete, soft studio three-point lighting, subtle reflection, no people, no extra props.
+Minimal product hero: matte black earbuds on concrete, soft three-point lighting, subtle reflection, no people, no extra props.
 ```
 
 ## curl example
 
 ```bash
 source .env && curl -sS -X POST \
-  -H "Authorization: $ARCADS_BASIC_AUTH" \
+  -H "Authorization: Bearer $KIE_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "productId": "...",
-    "prompt": "Minimal product hero: matte black earbuds on concrete, soft studio three-point lighting, subtle reflection, no people, no extra props.",
     "model": "nano-banana-2",
-    "aspectRatio": "1:1"
+    "input": {
+      "prompt": "Minimal product hero: matte black earbuds on concrete, soft three-point lighting, subtle reflection, no people, no extra props.",
+      "aspect_ratio": "1:1"
+    }
   }' \
-  "https://external-api.arcads.ai/V2/images/generate"
+  "https://api.kie.ai/api/v1/jobs/createTask"
 ```

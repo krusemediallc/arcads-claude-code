@@ -1,6 +1,6 @@
-# Arcads AI Video — Agent Skill Pack
+# kie.ai AI Video — Agent Skill Pack
 
-Create AI marketing videos and images using your [Arcads](https://arcads.ai/?via=caleb) account, powered by AI agents in **Claude Code** or **Cursor**. Supports Sora 2, Veo 3.1, Kling 3.0, and Nano Banana.
+Create AI marketing videos and images using your [kie.ai](https://kie.ai) account, powered by AI agents in **Claude Code** or **Cursor**. Supports Seedance 2.0, Sora 2, Sora 2 Pro, Veo 3 / 3.1, Kling 2.6 / 3.0, and Nano Banana 2 / Pro.
 
 ## Get started (5 minutes)
 
@@ -8,7 +8,7 @@ Create AI marketing videos and images using your [Arcads](https://arcads.ai/?via
 
 ```bash
 git clone <repo-url>
-cd arcads-agent-skills
+cd arcads-claude-code
 ```
 
 ### 2. Run setup
@@ -18,31 +18,31 @@ cd arcads-agent-skills
 ```
 
 This will:
-- If you need an Arcads account first, sign up here: [arcads.ai/?via=caleb](https://arcads.ai/?via=caleb)
-- Ask for your **Arcads API key** (find it at [app.arcads.ai/settings/api](https://app.arcads.ai/settings/api))
+- If you don't have a kie.ai account yet, create one at [kie.ai](https://kie.ai)
+- Ask for your **kie.ai API key** (create one at [kie.ai/api-key](https://kie.ai/api-key))
 - Save it securely in `.env` (never committed to git)
-- Verify your connection to Arcads
+- Verify your connection to kie.ai
 - Create your personal `MASTER_CONTEXT.md` workspace file
 
 ### 3. Open in your AI editor
 
-**Claude Code:** Open the folder. The agent loads the Arcads skill automatically.
+**Claude Code:** Open the folder. The agent loads the kie-ai-external-api skill automatically.
 
-**Cursor:** Open the folder. The skill is at `.cursor/skills/arcads-external-api/`.
+**Cursor:** Open the folder. The skill is at `.cursor/skills/kie-ai-external-api/`.
 
 ### 4. Start creating
 
-The agent handles API calls, polling, prompt engineering, and file organization. Here are the main workflows:
+The agent handles API calls, polling, prompt engineering, and file organization. Main workflows:
 
 #### Create an AI influencer (character sheet)
 
 > "Create a new AI influencer — a 22-year-old college student with freckles"
 
-The agent generates a full-body hero image for your approval, then creates 9 additional angles (3/4 views, profile, closeup, etc.) using the hero as a reference. All 10 images are saved to `references/influencers/` for future use.
+The agent generates a full-body hero image for your approval, then creates 9 additional angles (3/4 views, profile, closeup, etc.) using the hero as a reference via Nano Banana 2. All 10 images are saved to `references/influencers/` for future use.
 
 #### Generate UGC product selfie stills
 
-> "Generate a UGC selfie of Sofia holding the Arcads Cola can in her bedroom"
+> "Generate a UGC selfie of Sofia holding the Nova Cola can in her bedroom"
 
 Combines your character + product photo + style references from `references/aesthetics/ugc-selfie/` into an authentic-looking iPhone selfie frame grab. Includes skin realism and camera imperfections to fight AI's polished default.
 
@@ -50,13 +50,13 @@ Combines your character + product photo + style references from `references/aest
 
 > "Turn that image into a video — have her talk about the product"
 
-Uses Veo 3.1 with `startFrame` to animate your approved UGC still. The video starts from that exact image with natural human motion (eye contact breaks, head tilts, body shifts) and dialogue.
+Uses Seedance 2.0 (`first_frame_url`) or Veo 3.1 (`FIRST_AND_LAST_FRAMES_2_VIDEO`) to animate your approved UGC still. The video starts from that exact image with natural human motion (eye contact breaks, head tilts, body shifts) and dialogue.
 
 #### Quick UGC video (no starting frame)
 
 > "Generate a UGC video ad for this product" + drop a product photo
 
-Uses Sora 2 with your product photo as a style reference to generate a video directly — no starting frame needed. Faster but less control over the person's appearance.
+Uses Sora 2 with your product photo as a style reference to generate a video directly — faster but less control over the person's appearance.
 
 #### Other things to try
 
@@ -64,59 +64,72 @@ Uses Sora 2 with your product photo as a style reference to generate a video dir
 - "Make a Nano Banana product hero image"
 - "Generate 5 different ad variations for this product"
 
+## Reference images: hosting
+
+**Important: kie.ai requires public HTTPS URLs for reference images** — unlike some competing APIs, it does not host your files for you. When you drop an image into `references/` and ask the agent to use it, the agent will prompt you to host it first.
+
+**Fastest options:**
+- **Imgur** — upload at [imgur.com](https://imgur.com/upload), copy the direct `i.imgur.com/*.jpg` link.
+- **Supabase Storage / Cloudflare R2 / S3** — if you already have them, use a public bucket.
+- **GitHub raw** — good for small, non-sensitive references you've committed to a public repo.
+
+See the skill's reference for the full guide and gotchas (e.g. the Imgur direct-link rule, why Google Drive share pages don't work).
+
 ## What's in the box
 
 | Path | What it does |
 |------|-------------|
-| `skills/arcads-external-api/` | The skill: API reference, prompting guide, per-model prompt library |
-| `MASTER_CONTEXT.template.md` | Template for your workspace context (credit costs, brand voice, learnings) |
+| `skills/kie-ai-external-api/` | The skill: API reference, prompting guide, per-model prompt library |
+| `skills/generate-youtube-thumbnail/` | Extra skill for YouTube thumbnails |
+| `MASTER_CONTEXT.template.md` | Template for your workspace context (cost rates, brand voice, learnings) |
 | `MASTER_CONTEXT.md` | Your personalized copy (created by setup, not committed to git) |
 | `.env` | Your API key (created by setup, never committed) |
 | `scripts/setup.sh` | One-time setup |
 | `scripts/sync-skill.sh` | Copies skill edits to `.claude/` and `.cursor/` directories |
-| `scripts/check-arcads-env.sh` | Tests API connectivity |
+| `scripts/check-kie-env.sh` | Tests API connectivity |
 | `references/` | Drop reference images here (influencers, products, aesthetics) — gitignored |
+| `logs/kie-api.jsonl` | Append-only log of every API call (config + status, not prompts or keys) |
 
 ## Your API key
 
-Your key authenticates with the Arcads API. During setup you paste it once and the agent uses it from `.env` automatically. You never need to paste it into chat.
+Your key authenticates with the kie.ai API. During setup you paste it once and the agent uses it from `.env` automatically. You never need to paste it into chat.
 
-Need an Arcads account first? Create one here: **[https://arcads.ai/?via=caleb](https://arcads.ai/?via=caleb)**
+Need a kie.ai account first? Create one at **[https://kie.ai](https://kie.ai)**.
 
-Find your key: **[Arcads Dashboard > Settings > API](https://app.arcads.ai/settings/api)**
+Manage keys: **[kie.ai/api-key](https://kie.ai/api-key)**
 
 ## Project memory
 
 `MASTER_CONTEXT.md` is your workspace's living memory. The agent reads it at the start of every session and writes learnings back. It stores:
 
-- **Default product** — auto-populated on first use so you're never asked "which product?" again
-- **Credit costs** — you fill in once (or the agent asks), then every session has them
+- **Cost rates** — you fill in once (or the agent asks), then every session has them
 - **Brand voice** — optional tone, audience, and word preferences
-- **API learnings** — universal Arcads quirks that help the agent work better
+- **API learnings** — universal kie.ai quirks that help the agent work better
 - **Changelog** — dated notes from each session
 
 ## Supported models
 
-| Model | Type | Best for | Credits |
-|-------|------|----------|---------|
-| **Veo 3.1** | Video | Animating a starting frame into ~8s video with dialogue. Best for UGC stills → video. | 1 |
-| **Sora 2** | Video | Longer videos (up to 20s) from text prompts. Product photo as style ref (no starting frame). | varies |
-| **Kling 3.0** | Video | B-roll and scene generation (via scene/b-roll endpoints) | varies |
-| **Nano Banana 2** | Image | UGC stills, character sheets, product shots, influencer recreation | 0.03 |
+| Model | Type | Best for | kie.ai model slug |
+|-------|------|----------|-------------------|
+| **Seedance 2.0** | Video | UGC selfie-style video with speech, image-to-video up to 15s | `bytedance/seedance-2` |
+| **Sora 2 / Sora 2 Pro** | Video | Longer videos (up to 20s), text-to-video, speech | `sora-2-text-to-video`, `sora-2-image-to-video`, `sora-2-pro-*` |
+| **Veo 3 / 3.1** | Video | Animating a starting frame into ~8s video with dialogue | `veo3`, `veo3_fast` (on `/api/v1/veo/generate`) |
+| **Kling 3.0** | Video | B-roll / scene clips, motion control (silent) | `kling-3.0/video`, `kling-3.0/motion-control` |
+| **Nano Banana 2 / Pro** | Image | UGC stills, character sheets, product shots, influencer recreation | `nano-banana-2`, `nano-banana-pro` |
 
-## Reference images
+## Reference images folder
 
-Drop images into the `references/` folder and the agent will use them automatically:
+Drop images into the `references/` folder and the agent will offer to use them:
 
 - **`references/influencers/`** — Photos of people to recreate as AI-generated content
 - **`references/products/`** — Product photos for showcase videos and hero images
 - **`references/aesthetics/`** — Style references organized by vibe (`ugc-selfie/`, `cinematic/`, etc.)
 
-Images stay local — the folder contents are gitignored.
+Images stay local (gitignored). **Before kie.ai can see them, you must host them at a public HTTPS URL** — the agent will walk you through this on first use.
 
 ## Editing the skill
 
-The canonical skill source lives in `skills/arcads-external-api/`. After editing any file there, run:
+The canonical skill source lives in `skills/kie-ai-external-api/`. After editing any file there, run:
 
 ```bash
 ./scripts/sync-skill.sh
@@ -127,7 +140,7 @@ This copies your changes to `.claude/skills/` and `.cursor/skills/` (which are g
 ## Security
 
 - `.env` is gitignored — never committed
-- `MASTER_CONTEXT.md` is gitignored — contains your product IDs and workspace data
+- `MASTER_CONTEXT.md` is gitignored — contains your workspace data
 - Never paste API keys in GitHub issues or public chats
 
 ## Vendor prompting guides
@@ -141,7 +154,7 @@ This copies your changes to `.claude/skills/` and `.cursor/skills/` (which are g
 
 ## API docs
 
-[Arcads Swagger UI](https://external-api.arcads.ai/docs)
+[kie.ai official docs](https://docs.kie.ai/) • [Model marketplace](https://kie.ai/market) • [Pricing](https://kie.ai/pricing)
 
 ## Other AI assistants (Manus, Copilot, etc.)
 

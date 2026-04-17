@@ -1,49 +1,65 @@
-# Arcads API logs
+# kie.ai API logs
 
-This directory contains **append-only logs** of every Arcads API generation call made by the agent. The logs power smarter credit-cost estimation over time.
+This directory contains **append-only logs** of every kie.ai API generation call made by the agent. The logs power smarter cost estimation over time and give you a local audit trail of what was generated when.
 
 ## Files
 
-- **`arcads-api.jsonl`** — one JSON object per line. Every `POST` to a generation endpoint (`/v2/videos/generate`, `/v2/images/generate`, `/v1/b-roll`, `/v1/scene`, etc.) appends one line when the request is fired and updates the same line with final status/credits after polling completes.
+- **`kie-api.jsonl`** — one JSON object per line. Every `POST` to a generation endpoint (`/api/v1/jobs/createTask`, `/api/v1/veo/generate`) appends one line when the request is fired and updates the same line with final status after polling completes.
+- **`arcads-api.archive.jsonl`** — frozen historical log from when this repo targeted the Arcads API. Different schema (uses `assetId`, `productId`, `projectId`, `creditsCharged`). Keep for reference; do not append to it.
 
 ## Entry schema
 
 ```json
 {
-  "timestamp": "2026-04-09T19:18:24.611Z",
-  "endpoint": "POST /v2/videos/generate",
-  "model": "seedance-2.0",
-  "assetId": "290dc89f-d763-4bcf-8da2-290caa00deef",
-  "productId": "10b24deb-2ce7-47f7-8cf3-624b844658b8",
-  "projectId": "0f1e0482-35f8-4ea6-96d9-dbf114f159bf",
+  "timestamp": "2026-04-17T19:18:24.611Z",
+  "endpoint": "POST /api/v1/jobs/createTask",
+  "model": "bytedance/seedance-2",
+  "taskId": "b7f3e9c2-8a4d-4e1f-9c6b-2f8d7a3e5b1c",
   "request": {
     "duration": 15,
     "resolution": "720p",
-    "aspectRatio": "9:16",
-    "audioEnabled": true,
-    "referenceImagesCount": 1,
-    "referenceVideosCount": 0,
-    "referenceAudiosCount": 0,
+    "aspect_ratio": "9:16",
+    "audio": true,
+    "firstFrameUrlPresent": true,
+    "lastFrameUrlPresent": false,
+    "referenceImageUrlsCount": 0,
+    "referenceVideoUrlsCount": 0,
+    "referenceAudioUrlsCount": 0,
+    "imageInputCount": 0,
+    "generationType": null,
     "promptWordCount": 340
   },
   "response": {
-    "status": "generated",
-    "creditsCharged": 0.9,
-    "generationTimeSec": 90,
-    "videoUrl": "s3://... (presigned, expires)",
-    "thumbnailUrl": "s3://... (presigned, expires)",
+    "successFlag": 1,
+    "state": "success",
+    "generationTimeSec": 207,
+    "resultUrlsCount": 1,
     "error": null
-  },
-  "session": {
-    "folderName": "Arcads API - 2026-04-09"
   }
 }
 ```
 
+## What to log and NOT to log
+
+**DO log:**
+- `taskId` (public identifier)
+- Model slug and endpoint family
+- Request config (durations, resolutions, aspect ratios, boolean flags)
+- **Counts** of reference URLs (not the URLs themselves — they may be private)
+- Word count of the prompt (not the prompt text)
+- Final `successFlag`, state, elapsed time
+- Error messages from `data.error` (these are diagnostic, no user data)
+
+**Do NOT log:**
+- `KIE_API_KEY`, `Authorization` headers, or any secret
+- Full prompt text (prompts can contain user brief details; log the word count instead)
+- Reference URLs (the user's private Imgur / Supabase / R2 URLs shouldn't be appended to a plaintext log)
+- `resultUrls[]` content (they may be temporary; log the count)
+
 ## How the agent uses this file
 
-- **Before any new generation:** grep the log for entries with the same `model` + similar config and use the **actual recorded `creditsCharged`** to compute the estimate — not a hardcoded table.
-- **After each generation:** append the request metadata and the final polled response (including `creditsCharged` and elapsed time).
-- **When pricing rules emerge:** derive per-second or per-unit rates from recorded data and document them in `MASTER_CONTEXT.md`.
+- **Before any new generation:** the agent reads this log to cross-check that the rate in `MASTER_CONTEXT.md` roughly matches historical runs. If a model's typical generation time has shifted (e.g. Seedance started taking twice as long), that's an early signal to flag.
+- **After each generation:** append the request metadata at POST time (with `successFlag: 0`, `state: "pending"`), then update the same line after polling completes with final status and elapsed time.
+- **Cost reconciliation:** kie.ai does not return a per-call cost figure on the task response. To reconcile costs, the agent will periodically ask the user to check their [kie.ai billing page](https://kie.ai/billing) and update `MASTER_CONTEXT.md` if the effective rates have changed.
 
-Logs are **not gitignored** — historical cost data across sessions is valuable. Do NOT log API keys, Authorization headers, or full prompt text (prompts can be large; store a word count instead).
+Logs are **not gitignored** — historical usage data across sessions is valuable. But because they contain no secrets and no prompt text, they're safe to commit.

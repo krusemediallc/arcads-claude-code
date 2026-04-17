@@ -167,7 +167,7 @@ illegible phone screen content.
 - 5+ face references
 - Input image (real ad / source material)
 - Output image (AI-generated result)
-- Claude logo and/or Arcads logo for corners
+- Brand logos for corner placement (e.g. channel logo top-left, sponsor logo top-right)
 
 **Prompt template:**
 
@@ -191,9 +191,9 @@ In the [bottom-right / right-third / lower-right corner] is the bearded
 man, looking at the terminal with [EXPRESSION], use his exact facial
 likeness from the headshot reference. NO HANDS VISIBLE.
 
-Orange Claude Code starburst logo glows in the top-left of the terminal
-(use the Claude logo reference exactly). Black Arcads A logo glows in the
-top-right (use the Arcads logo reference exactly).
+[PRIMARY BRAND LOGO] glows in the top-left of the terminal
+(use the [primary] logo reference exactly). [SECONDARY BRAND LOGO] glows in
+the top-right (use the [secondary] logo reference exactly).
 
 Bold yellow text at the top with thick black outline reads
 [TITLE — e.g. "I CLONED THIS AD"].

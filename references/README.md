@@ -1,6 +1,8 @@
 # Reference images
 
-Drop reference images here for the agent to use when generating Nano Banana stills, Veo 3.1 start frames, and other Arcads outputs. The agent checks this folder automatically.
+Drop reference images here for the agent to use when generating Nano Banana stills, Veo 3.1 start frames, and other kie.ai outputs. The agent checks this folder automatically.
+
+> **Important:** kie.ai requires **public HTTPS URLs** for reference images — it does not host your files. The agent will ask you to upload the image to your preferred host (Imgur / Supabase / R2 / etc.) before firing the API call. See `skills/kie-ai-external-api/SKILL.md` → "Reference images: hosting and public URLs".
 
 ## Folder structure
 
@@ -43,16 +45,16 @@ Descriptors should cover these categories in order:
 10-above-angle.jpg
 ```
 
-The agent uses `01-hero-front.png` as the primary reference and can load all 10 as `referenceImages` for maximum consistency.
+The agent uses `01-hero-front.jpg` as the primary reference and can load all 10 as `image_input[]` (Nano Banana) or `reference_image_urls[]` (Seedance) for maximum consistency — after you host them at public HTTPS URLs.
 
 ### `products/`
 Product photos for showcase videos and product hero images.
 - Different angles, packaging, in-use shots, flat lays
-- The agent uses these as `refImageAsBase64` in the product showcase workflow
+- The agent uses these as `first_frame_url` (for image-to-video flows) or as entries in `image_input[]` (Nano Banana composition) — after you host them at public HTTPS URLs
 - Tip: clean backgrounds (white/neutral) produce the best results
 
 ### `aesthetics/`
-Style references organized into subfolders by vibe. The agent loads 3 images from the chosen style folder as `referenceImages` to influence generation style.
+Style references organized into subfolders by vibe. The agent loads 3 images from the chosen style folder as `reference_image_urls[]` (Seedance) or `imageUrls[]` + `REFERENCE_2_VIDEO` (Veo) to influence generation style — after you host them at public HTTPS URLs.
 
 #### `aesthetics/ugc-selfie/`
 iPhone selfie-style UGC — raw, unpolished, authentic-looking frame grabs. Drop 3-5 reference images showing the target aesthetic: front-camera selfies, slightly grainy, imperfect lighting, casual environments.
@@ -65,7 +67,7 @@ Create a new subfolder (e.g., `aesthetics/cinematic/`, `aesthetics/studio/`) and
 
 ## Supported formats
 
-JPEG, PNG, WebP. Shipped images are JPEG 85% for smaller repo size. The agent auto-converts and upscales images below 1024px before sending to the API.
+JPEG, PNG, WebP. Shipped images are JPEG 85% for smaller repo size. For best results, upscale images below 1024px before hosting — on macOS: `sips -Z 1080 img.jpg`.
 
 ## Privacy
 

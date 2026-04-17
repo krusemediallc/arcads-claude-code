@@ -1,6 +1,6 @@
 # UGC selfie-style video — cross-model prompting guide
 
-**Applies to:** Veo 3.1, Sora 2, Kling 3.0 (via Arcads scene / b-roll / direct model routes)  
+**Applies to:** Veo 3.1, Sora 2, Kling 3.0 (all via kie.ai)  
 **Aesthetic:** iPhone-shot, Instagram Reels, unpolished realism
 
 Use this guide when the user wants **authentic-looking UGC** — selfie angles, handheld shake, imperfect lighting, casual speech. The biggest mistake is letting the AI produce polished cinematic output; UGC works because it feels real.

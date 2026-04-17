@@ -1,35 +1,52 @@
 # Seedance 2.0 — model guide
 
-**Arcads route:** `POST /v2/videos/generate` with `"model": "seedance-2.0"`
-**Asset type on response:** `seedance_20`
-**Polling:** `GET /v1/assets/{id}` — status `pending` → `generated` | `failed`
+**kie.ai route:** `POST /api/v1/jobs/createTask` with `"model": "bytedance/seedance-2"`
+**Polling:** `GET /api/v1/jobs/recordInfo?taskId=<id>`
 
-## API parameters
+## API parameters (inside the `input` object)
+
+kie.ai wraps everything in `{model, input: {...}}`. Put the fields below inside `input`.
 
 | Field | Required | Value / Range | Notes |
 |-------|----------|---------------|-------|
-| `model` | yes | `"seedance-2.0"` | |
-| `productId` | yes | UUID | |
-| `prompt` | yes | string | 100–260 words sweet spot (see below) |
-| `aspectRatio` | no | `"9:16"`, `"16:9"` | No `1:1`. Default `9:16` for UGC/social. |
-| `duration` | no | 4–15 (integer seconds) | Continuous range, not an enum. Default to 15 for full-length clips. |
-| `resolution` | no | `"480p"`, `"720p"` | Default `720p`. |
-| `referenceImages` | no | array of `filePath` strings (max 3) | Upload via `POST /v1/file-upload/get-presigned-url` first. |
-| `referenceVideos` | no | array of `filePath` strings (max 3) | Seedance 2.0 exclusive. Upload video files via presigned URL. |
-| `referenceAudios` | no | array of `filePath` strings (max 3) | Seedance 2.0 exclusive. Upload audio files via presigned URL. |
-| `audioEnabled` | no | boolean | Seedance 2.0 exclusive. Ask the user before each generation. |
-| `projectId` | no | UUID | Assign to session project. |
+| `model` (top-level) | yes | `"bytedance/seedance-2"` | |
+| `input.prompt` | yes | string | 100–260 words sweet spot (see below) |
+| `input.aspect_ratio` | no | `"9:16"`, `"16:9"` | No `1:1`. Default `9:16` for UGC/social. |
+| `input.duration` | no | 4–15 (integer seconds) | Continuous range, not an enum. Default to 15 for full-length clips. |
+| `input.resolution` | no | `"480p"`, `"720p"` | Default `720p`. |
+| `input.first_frame_url` | no | public HTTPS URL | Start-frame image. Host the file first — see SKILL.md → "Reference images: hosting and public URLs". |
+| `input.last_frame_url` | no | public HTTPS URL | End-frame image (when supported). |
+| `input.reference_image_urls` | no | array of public HTTPS URLs (max 3) | Style / product references. |
+| `input.reference_video_urls` | no | array of public HTTPS URLs | Seedance 2.0 exclusive. |
+| `input.reference_audio_urls` | no | array of public HTTPS URLs | Seedance 2.0 exclusive. |
+| `input.audio` | no | boolean | Seedance 2.0 exclusive. Ask the user before each generation. |
 
-**Not supported:** `startFrame`, `endFrame`, `nbGenerations`.
+**Not supported:** base64 image inputs (must be URLs). kie.ai has no `productId`, `projectId`, or `nbGenerations` — to generate multiple variations, fire N parallel `createTask` calls.
 
 ### `@(img1)` reference image mapping
 
 The Seedance 2.0 prompting templates use `@(img1)` / `@(img2)` / `@(img3)` tokens inline in the prompt text to reference product images. In the API:
 
-- Pass the corresponding images via the `referenceImages` array (index 0 = `@(img1)`, index 1 = `@(img2)`, etc.).
-- **Keep the `@(img1)` tokens in the prompt text.** The model may interpret them as pointers to the reference images. If a generation ignores the reference image, try removing the token and relying solely on the `referenceImages` array as a fallback.
+- Pass the corresponding images via the `input.reference_image_urls` array (index 0 = `@(img1)`, index 1 = `@(img2)`, etc.).
+- **Keep the `@(img1)` tokens in the prompt text.** The model may interpret them as pointers to the reference images. If a generation ignores the reference image, try removing the token and relying solely on the `reference_image_urls` array as a fallback.
 
 This mapping needs confirmation during the first real generation — document findings in `MASTER_CONTEXT.md`.
+
+### Example request body
+
+```json
+{
+  "model": "bytedance/seedance-2",
+  "input": {
+    "prompt": "15 seconds UGC style skincare review video...",
+    "duration": 15,
+    "aspect_ratio": "9:16",
+    "resolution": "720p",
+    "audio": true,
+    "reference_image_urls": ["https://i.imgur.com/xxx.jpg"]
+  }
+}
+```
 
 ## Seedance 2.0 platform guide
 
@@ -141,7 +158,7 @@ If none of the above fit, use the platform guide rules in this file directly and
 
 ### Cross-reference: existing UGC guide
 
-The repo also has [ugc-selfie-style.md](ugc-selfie-style.md) — a cross-model UGC guide for Sora 2 / Veo 3.1. The Seedance-specific [seedance-2-ugc.md](seedance-2-ugc.md) has a richer 9-layer formula optimized for Seedance 2.0's strengths. Use the Seedance version when generating with `model: "seedance-2.0"`.
+The repo also has [ugc-selfie-style.md](ugc-selfie-style.md) — a cross-model UGC guide for Sora 2 / Veo 3.1. The Seedance-specific [seedance-2-ugc.md](seedance-2-ugc.md) has a richer 9-layer formula optimized for Seedance 2.0's strengths. Use the Seedance version when generating with `model: "bytedance/seedance-2"`.
 
 ## Adaptation checklist (all styles)
 

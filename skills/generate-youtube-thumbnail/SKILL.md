@@ -1,12 +1,12 @@
 ---
 name: generate-youtube-thumbnail
 description: >-
-  Generate high-CTR YouTube thumbnails using Nano Banana 2 via the Arcads external API. Handles reference image upload, character likeness alignment, proven CTR-tested prompt formulas, and parallel batch generation. Use when the user asks to create a YouTube thumbnail, video thumbnail, A/B test thumbnail variations, or refers to thumbnail design with their face, brand assets, or product photos.
+  Generate high-CTR YouTube thumbnails using Nano Banana 2 (or Nano Banana Pro) via the kie.ai API. Handles character likeness alignment via public reference image URLs, proven CTR-tested prompt formulas, and parallel batch generation. Use when the user asks to create a YouTube thumbnail, video thumbnail, A/B test thumbnail variations, or refers to thumbnail design with their face, brand assets, or product photos.
 ---
 
 # Generate YouTube Thumbnail
 
-A reusable workflow for creating YouTube thumbnails via Arcads' Nano Banana 2 image endpoint with proper character likeness and proven CTR formulas.
+A reusable workflow for creating YouTube thumbnails via kie.ai's Nano Banana image endpoint with proper character likeness and proven CTR formulas.
 
 ## When to use this skill
 
@@ -24,19 +24,20 @@ Trigger on phrases like:
 2. **[prompting/guide.md](prompting/guide.md)** — likeness alignment, expressions cheat sheet, prompt structure
 3. **[prompting/formulas.md](prompting/formulas.md)** — 5 proven thumbnail formulas with templates
 4. **[scripts/generate-batch.sh](scripts/generate-batch.sh)** — copy/adapt this script for new batches
+5. **[../kie-ai-external-api/SKILL.md](../kie-ai-external-api/SKILL.md)** — parent skill: auth, endpoint families, hosting flow, polling
 
 ## Prerequisites
 
-- `.env` with `ARCADS_BASIC_AUTH` and `ARCADS_API_KEY`
-- A `productId` (defaults to MASTER_CONTEXT.md's "My workspace" product)
-- Reference images on disk (NOT pasted in chat — chat-pasted images are NOT accessible to the API):
+- `.env` with `KIE_API_KEY` (Bearer token — see `../kie-ai-external-api/SKILL.md`)
+- **Reference images hosted at public HTTPS URLs** — kie.ai does not accept file uploads or base64. You must host each reference yourself (Imgur `i.imgur.com/*.jpg`, Cloudflare R2, Supabase Storage, GitHub raw, etc.) and pass the public URLs in. See `../kie-ai-external-api/SKILL.md` → "Reference images: hosting and public URLs".
+- Local reference images organized (optional but recommended) in a project folder so you can track which file maps to which hosted URL:
   - `face/` — 5+ photos of the subject (headshot + 3/4 angles + close-ups + expressions)
-  - `logos/` — brand logos as files (orange Claude Code starburst, black Arcads A, etc.)
+  - `logos/` — brand logos as files
   - `products/` — clean product shots
   - `examples/` — real ad screenshots, comparison material
   - `style/` — example thumbnails the user wants to match aesthetically
 
-If references are missing or the user pastes images in chat instead of saving them, **stop and ask the user to drop the actual files into a project folder** (e.g. `references/youtube thumbnail/`). Chat paste ≠ file on disk.
+If references are missing or the user pastes images in chat instead of saving/hosting them, **stop and ask the user to save the files AND host them at public URLs** (e.g. drop into `references/youtube thumbnail/` for tracking, then upload to Imgur/R2). Chat paste ≠ file on disk ≠ public URL.
 
 ## Workflow
 
@@ -49,20 +50,26 @@ Ask the user for any missing context, but only what you actually need:
 3. **Brand assets** — which logos / products / brand colors should appear?
 4. **Text** — what should the title text say? Will text be baked in, or added in post (Canva/Photoshop)?
 5. **Comparison material** — for "real vs AI" thumbnails, what real ad and what AI-generated ad?
+6. **Reference URLs** — for every brand-specific visual (face, logo, product), ask the user for the **public HTTPS URL**. If they only have local files, walk them through the hosting flow in `../kie-ai-external-api/SKILL.md`.
 
-### 2. Verify references exist on disk
+### 2. Verify reference URLs exist
 
-```bash
-ls "references/youtube thumbnail/"
-```
+Collect the list of hosted URLs the user will pass to the API. Quick sanity check: open each URL in a browser preview (or `curl -I`) — it should return `200` and `Content-Type: image/*`. Watch-outs:
+- Imgur page URLs (`imgur.com/abc123`) do **not** work — use the direct `i.imgur.com/abc123.jpg` link.
+- Google Drive / Dropbox share pages redirect to HTML — won't work.
+- Signed S3 URLs expire; use long-lived public-bucket URLs for repeat batches.
 
-If references are missing, ask the user to drop them. **Do not proceed with text-only descriptions for brand-specific items** (logos, branded products, branded apparel) — you'll get generic AI approximations that don't match the brand. Generic descriptions are OK for backgrounds, expressions, and clothing.
+If the user has local files but no URLs yet, stop and resolve hosting first. **Do not proceed with text-only descriptions for brand-specific items** (logos, branded products, branded apparel) — you'll get generic AI approximations that don't match the brand. Generic descriptions are OK for backgrounds, expressions, and clothing.
 
 ### 3. Estimate cost and confirm
 
-Always present cost as an **estimate** before firing:
+Always present cost as an **estimate** before firing. Read per-model rates from `MASTER_CONTEXT.md`:
 
-> "Estimated cost: N variations × 24 credits = X credits. Tell me if you want to confirm exact pricing in the Arcads platform first."
+> "Estimated cost: N variations × $X (nano-banana-2) = $Y. Confirm before I fire?"
+
+Model choice:
+- **`nano-banana-2`** — default. 1K/2K output. Fastest and cheapest.
+- **`nano-banana-pro`** — supports 4K output and stronger fine-detail rendering. Use when the thumbnail needs crisp small text or detailed product surfaces.
 
 ### 4. Pick a formula
 
@@ -98,18 +105,19 @@ Avoid: distorted face, extra fingers, hands visible, blurry logos, generic face
 
 Copy `scripts/generate-batch.sh` to a new versioned script (`scripts/generate-thumbnails-vN.sh`) and modify:
 
-1. Update `REF_BASE` and `COMMON_REFS` array with your reference file paths
+1. Update `REFERENCE_URLS` array with the public HTTPS URLs for your references (max 14 per generation — Nano Banana's `image_input[]` limit)
 2. Replace the `PROMPTS` array entries with your composed prompts
-3. Run with `bash scripts/generate-thumbnails-vN.sh > output/run.log 2>&1 &`
-4. Monitor with `tail -F output/run.log | grep -E "DONE|FAILED|Asset"`
+3. (Optional) switch `MODEL` to `nano-banana-pro` if you need 4K
+4. Run with `bash scripts/generate-thumbnails-vN.sh > output/run.log 2>&1 &`
+5. Monitor with `tail -F output/run.log | grep -E "DONE|FAILED|Task"`
 
 The script handles:
-- Image upscaling (Lanczos to 1080px longest side, RGB JPEG conversion)
-- Presigned upload + S3 PUT
-- **Fresh upload per generation** (critical — re-using filePaths causes 500 errors)
-- Parallel firing (10 in flight ≈ 1.5 min total)
+- `POST /api/v1/jobs/createTask` with `{model, input: {prompt, image_input, aspect_ratio}}`
+- Parallel firing (all variations fired in parallel)
 - Retry on failure
-- Asset polling and download
+- Polling `GET /api/v1/jobs/recordInfo?taskId=...` until `successFlag` is `1` (success) or `2|3` (failure)
+- Downloading the result from `data.response.resultUrls[0]`
+- Appending a log entry to `logs/kie-api.jsonl` per the parent skill's schema
 
 ### 7. Review and present
 
@@ -122,63 +130,62 @@ After all generations complete, read each thumbnail with the Read tool and prese
 
 ### 8. Mandatory disclosures
 
-- **Always label credit totals as estimates** and tell the user to confirm exact pricing in Arcads
-- **Cost data:** Nano Banana 2 image = **24 credits** per generation (post-April-2026 800x credit multiplier)
-- **Generation time:** ~30–60 seconds typical
-- **Parallel budget:** 10 in parallel finishes in ~1.5–2 min total
+- **Always label dollar totals as estimates** and tell the user to confirm exact pricing at [kie.ai/billing](https://kie.ai/billing)
+- **Cost data:** read from `MASTER_CONTEXT.md` cost table — Nano Banana 2 and Nano Banana Pro rows
+- **Generation time:** Nano Banana ~30–60 seconds typical
+- **Parallel budget:** 10 in parallel typically finishes in ~1.5–2 min total (kie.ai queue depending)
 
 ## Quirks and pitfalls
 
-### Reference images are effectively one-shot per upload
+### Public URLs only — no base64, no file uploads
 
-Reusing the same uploaded `filePath` across multiple generation calls causes `HTTP 500 UNKNOWN_ERROR`. **Always upload fresh references for each generation.** The batch script handles this automatically with `upload_all_fresh()` per `generate_one()` call.
+kie.ai does not host reference images. The API takes `image_input: ["https://...", ...]` — each entry must be a publicly reachable HTTPS URL returning an image. No presigned upload flow, no multipart POST, no base64.
 
-### Image preprocessing is mandatory
+### Imgur direct link only
 
-Images smaller than 1080px longest side return `422 — The provided image is too small.` The skill's `prepare_image()` function:
-1. Opens the image
-2. Converts to RGB (strips alpha which trips some endpoints)
-3. Upscales to 1080px longest side with Lanczos resampling if needed
-4. Saves as JPEG quality 92
+Use `https://i.imgur.com/AbC123.jpg`, not `https://imgur.com/AbC123`. The page URL returns HTML and fails silently (the model sees no reference, output drifts to "generic bearded man with glasses").
 
-### `referenceImages` is array of plain strings
+### Stale / signed URLs expire
 
-Not objects. Sending `[{filePath: "..."}]` returns `400 — each value in referenceImages must be a string`. Send `["external-api-temp-uploads/abc.jpg", ...]` instead.
+If you use signed S3/GCS URLs, make sure the signature window covers your entire batch + retries. For repeat batches over days/weeks, prefer a long-lived public bucket (Cloudflare R2 public bucket, Supabase public storage, GitHub raw).
 
-### Chat-pasted images are NOT files
+### Chat-pasted images are NOT URLs
 
-If the user pastes an image directly in chat, you cannot pass it to the API. Ask them to save the actual file into a project folder.
+If the user pastes an image directly in chat, you cannot pass it to the API. Ask them to save the file AND host it. Both steps.
 
 ### Likeness drift without enough references
 
-With 1-2 face references the AI generalizes to "generic bearded man with glasses." With 5+ face references from different angles it locks in the specific person. **Always use 5+ face references for character work.**
+With 1-2 face references the AI generalizes to "generic bearded man with glasses." With 5+ face references from different angles it locks in the specific person. **Always use 5+ face references for character work.** Nano Banana accepts up to 14 URLs in `image_input[]`.
+
+### Brand-specific items need actual reference images
+
+Text descriptions of brand-specific items (logos, branded apparel, custom merchandise) will produce generic approximations. For pixel-accurate brand reproduction, host the actual brand asset and pass it as a reference.
 
 ### macOS bash 3.2
 
-Default macOS bash doesn't support `declare -A` (associative arrays). The batch script uses indexed arrays + temp files instead.
+Default macOS bash doesn't support `declare -A` (associative arrays). The batch script uses indexed arrays throughout.
 
-### Stale presigned URLs
+### Aspect ratio
 
-Presigned URLs expire after the `expiresIn` window (~10 min). Don't reuse URLs across long-running jobs — upload fresh.
-
-### Brand-specific items need actual reference files
-
-Text descriptions of brand-specific items (logos, branded apparel, custom merchandise) will produce generic approximations. The Mr. Paid Social hat from text alone reads as "MR PAID SOCIAL" but won't match the real patch typography. **For pixel-accurate brand reproduction, save the actual brand asset to disk and pass it as a reference.**
+Nano Banana supports `1:1, 16:9, 9:16, 3:4, 4:3`. Use `16:9` for YouTube thumbnails.
 
 ## Cost reference
 
-| Operation | Credits | Notes |
-|---|---|---|
-| Nano Banana 2 image (1 generation) | 24 | post-800x multiplier |
-| 6-variation batch | 144 | typical for first explorations |
-| 10-variation batch | 240 | typical for refinements |
-| 20-variation batch | 480 | typical for broad concept exploration |
+Read the current rates from `MASTER_CONTEXT.md`. Typical pattern:
 
-Always present as estimates, confirm exact in the Arcads platform.
+| Operation | Notes |
+|---|---|
+| Nano Banana 2 image (1 generation) | default; 1K/2K output |
+| Nano Banana Pro image (1 generation) | higher; supports 4K, better fine detail |
+| 6-variation batch | typical for first explorations |
+| 10-variation batch | typical for refinements |
+| 20-variation batch | typical for broad concept exploration |
+
+Always present as estimates, confirm exact at [kie.ai/billing](https://kie.ai/billing).
 
 ## See also
 
 - **[prompting/guide.md](prompting/guide.md)** — likeness alignment, expressions, prompt structure
 - **[prompting/formulas.md](prompting/formulas.md)** — 5 proven CTR formulas with prompt templates
 - **[scripts/generate-batch.sh](scripts/generate-batch.sh)** — reusable bash batch generator
-- **[arcads-external-api skill](../arcads-external-api/SKILL.md)** — underlying API reference for Nano Banana 2 endpoint and reference upload pipeline
+- **[kie-ai-external-api skill](../kie-ai-external-api/SKILL.md)** — parent skill: auth, Nano Banana reference, public URL hosting flow, polling, log schema

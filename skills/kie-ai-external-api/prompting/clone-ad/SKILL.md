@@ -39,7 +39,7 @@ Collect from the user:
 | Input | Required | Notes |
 |-------|----------|-------|
 | **Source video** | yes | The video ad to clone. File path to `.mp4`, `.mov`, `.webm` |
-| **Product image** | recommended | Reference photo of the user's product. Becomes `referenceImages` / `@(img1)` in the prompt. Without this, Seedance invents its own product design. |
+| **Product image** | recommended | Reference photo of the user's product. Becomes `reference_image_urls` / `@(img1)` in the prompt. Must be hosted at a public HTTPS URL — see `SKILL.md` → "Reference images: hosting and public URLs". Without this, Seedance invents its own product design. |
 | **Product/offer description** | if no image | Text description of the product, its features, target audience, and key selling points. Used to rewrite dialogue and product references. |
 | **Brand voice** | optional | Check `MASTER_CONTEXT.md` for brand blocks. If empty, ask the user for tone/audience preferences. |
 
@@ -51,7 +51,7 @@ at least a product image or a text description before proceeding.
 Reuse the analyze-video extraction script — do NOT duplicate it.
 
 ```bash
-bash "skills/arcads-external-api/prompting/analyze-video/scripts/extract-frames.sh" \
+bash "skills/kie-ai-external-api/prompting/analyze-video/scripts/extract-frames.sh" \
   "<source_video_path>" "/tmp/clone-ad-analysis" <num_frames>
 ```
 
@@ -186,7 +186,7 @@ Walk through this decision tree:
 │         Use the CHAINED MULTI-CLIP PIPELINE below
 │
 ├─ User provided a product IMAGE?
-│   YES → Image-to-video mode (referenceImages with @(img1) in prompt)
+│   YES → Image-to-video mode (reference_image_urls with @(img1) in prompt)
 │         For multi-clip: use i2v for clip 1 ONLY, then chain v2v for clips 2+
 │   NO  → Text-only mode (describe product in prompt text only)
 │         OR v2v if:
@@ -195,13 +195,14 @@ Walk through this decision tree:
 │           - (v2v with faces → content checker rejection + billed)
 │
 ├─ Source video has person SPEAKING?
-│   YES → audioEnabled: true (confirm with user)
+│   YES → audio: true (confirm with user)
 │         Dialogue confirmation gate REQUIRED (step 7)
-│   NO  → audioEnabled: false (or ask user preference)
+│   NO  → audio: false (or ask user preference)
 │         Skip dialogue gate
 │
 └─ User wants voice clone from source audio?
-    YES → Upload source audio as referenceAudios
+    YES → Host source audio at a public HTTPS URL and pass it via
+          reference_audio_urls
           (check audio+image regression: run sanity probe first)
     NO  → Seedance generates its own voice from text
 ```
@@ -212,41 +213,41 @@ When the source ad is longer than 15s, use this hybrid i2v→v2v chaining patter
 
 ```
 Clip 1: i2v mode
-  - referenceImages: [product image]  ← establishes brand fidelity
-  - audioEnabled: true (if speech)
+  - reference_image_urls: [product image URL]  ← establishes brand fidelity
+  - audio: true (if speech)
   - Generate → poll → download output
 
 Clip 2: v2v mode
-  - referenceVideos: [clip 1 output]  ← inherits hands, surface, lighting, product
-  - NO referenceImages (mutually exclusive)
-  - audioEnabled: true (if speech)
-  - Upload clip 1 output via fresh presigned URL
+  - reference_video_urls: [clip 1 output URL]  ← inherits hands, surface, lighting, product
+  - NO reference_image_urls (mutually exclusive)
+  - audio: true (if speech)
+  - Host clip 1 output at a public HTTPS URL
   - Generate → poll → download output
 
 Clip 3: v2v mode
-  - referenceVideos: [clip 2 output]  ← chain from MOST RECENT clip, not clip 1
-  - Upload clip 2 output via fresh presigned URL
+  - reference_video_urls: [clip 2 output URL]  ← chain from MOST RECENT clip, not clip 1
+  - Host clip 2 output at a public HTTPS URL
   - Generate → poll → download output
 
 ...continue for clips 4+
 ```
 
 **Critical rules for chaining:**
-1. **Always chain from the most recent clip** — do not reuse earlier uploads. Presigned URLs expire and stale uploads may fail silently.
-2. **Upload each clip output fresh** via `POST /v1/file-upload/get-presigned-url` immediately before using it as a reference. Do not reuse `filePath` values from previous uploads.
-3. **Wait for each clip to reach `generated` status** before uploading it as a reference for the next clip. Do not fire clips in parallel — they must be sequential.
+1. **Always chain from the most recent clip** — do not reuse earlier uploads.
+2. **Host each clip output fresh** at a public HTTPS URL before passing it as a `reference_video_urls` entry. See `SKILL.md` → "Reference images: hosting and public URLs" (same pattern applies to video).
+3. **Wait for each clip to reach `generated` status** before hosting it as a reference for the next clip. Do not fire clips in parallel — they must be sequential.
 4. **Clip 1 uses i2v** for brand fidelity (product image as reference). All subsequent clips use **v2v** (previous clip as reference) for visual continuity.
 5. After all clips are generated, **stitch with ffmpeg**: `ffmpeg -f concat -safe 0 -i list.txt -c copy output.mp4` (use absolute paths in the list file).
 
 **Why chaining works:** Seedance v2v inherits the visual style, hands, surface, lighting, and product appearance from the reference video. By chaining clip N → clip N+1, each subsequent clip maintains continuity with the one before it. The first clip's i2v reference image establishes the product identity; v2v propagates it through the series.
 
-**Cost note:** Clip 1 costs the i2v rate (~0.06/sec, 0.9 cr at 15s). Clips 2+ cost the v2v rate (~0.1/sec, 1.5 cr at 15s). A 3-clip series costs ~0.9 + 1.5 + 1.5 = ~3.9 credits total.
+**Cost note:** kie.ai bills in USD. Check `MASTER_CONTEXT.md` for the Seedance 2.0 rate — ask the user if the rate isn't listed. For multi-clip series, estimate per-clip cost and total.
 
 **Important constraints to check:**
-- `referenceImages` and `referenceVideos` are **mutually exclusive** — pick one per call
-- v2v with human-containing reference videos → content checker rejection (credits burned)
-- `audioEnabled: true` + `referenceImages` may 500 (intermittent server regression) — sanity probe first
-- `referenceVideos` count > 1 fails — only 1 ref video works
+- `reference_image_urls` and `reference_video_urls` are **mutually exclusive** — pick one per call
+- v2v with human-containing reference videos → content checker rejection (cost still billed)
+- `audio: true` + `reference_image_urls` may error (intermittent regression) — sanity probe first
+- `reference_video_urls` count > 1 may fail — only 1 ref video is known to work
 - If using v2v: only use product-only/abstract/hands-only videos (no faces)
 - Hands-only clips (no face visible) pass the v2v content checker — confirmed 2026-04-10
 
@@ -306,8 +307,8 @@ Approve this dialogue? (yes / edit / rewrite)
 ```
 
 **Rules:**
-- This gate is **separate** from the credit cost confirmation — both must be satisfied
-- Never assume approval from earlier confirmations (tone, analysis, credit cost)
+- This gate is **separate** from the cost confirmation — both must be satisfied
+- Never assume approval from earlier confirmations (tone, analysis, cost)
 - If user says "edit" or proposes changes, revise and re-present until approved
 - Skip ONLY if the source video is entirely silent (no speech detected in step 2)
 
@@ -315,107 +316,107 @@ Approve this dialogue? (yes / edit / rewrite)
 
 Ask the user:
 
-1. **Enable audio output?** (`audioEnabled: true` / `false`)
+1. **Enable audio output?** (`audio: true` / `false`)
    - Default to `true` if source video has speech
    - Default to `false` if source video is silent
 2. **Supply reference audio for voice cloning?**
-   - Offer to extract the source video's audio and use it as `referenceAudios`
+   - Offer to extract the source video's audio and host it at a public HTTPS URL for `reference_audio_urls`
    - Or user can provide their own voice clip
-   - Upload via presigned URL if provided
-3. **Sanity probe** (if using `audioEnabled: true` + `referenceImages`):
-   - This combo has a known regression that returns 500
+3. **Sanity probe** (if using `audio: true` + `reference_image_urls`):
+   - This combo has a known regression that can error
    - Before the full call, fire a minimal test to check if the regression is still active
    - If still broken, offer fallbacks:
-     - Drop audio (`audioEnabled: false`)
+     - Drop audio (`audio: false`)
      - Drop reference image (text-only, lose brand fidelity)
      - Use v2v workaround (generate silent i2v first, then v2v with audio on top)
 
-### Step 9: Credit cost estimation
+### Step 9: Cost estimation
 
 Follow the main SKILL.md's mandatory estimation flow:
 
-1. Check `logs/arcads-api.jsonl` for matching `model` + similar config
-2. Fall back to `MASTER_CONTEXT.md` rate table
+1. Check `logs/kie-api.jsonl` for matching `model` + similar config
+2. Fall back to `MASTER_CONTEXT.md` rate table (ask the user if the rate isn't listed)
 3. For multi-clip: show per-clip and total
 4. Present with source citation and estimate-only disclosure:
 
 ```
-Estimated credit cost:
-  Seedance 2.0 (15s i2v) × 1 clip × 1 variation = ~0.9 credits
-    (from logs/arcads-api.jsonl 2026-04-09)
+Estimated cost:
+  Seedance 2.0 (15s i2v) × 1 clip × 1 variation = ~$<rate>
+    (from logs/kie-api.jsonl 2026-04-09)
   ─────────────────────────────────────
-  Estimated total: ~0.9 credits
+  Estimated total: ~$<rate>
 
-  ⚠️ Estimate only — confirm exact cost in the Arcads platform.
+  ⚠️ Estimate only — confirm exact cost in the kie.ai dashboard.
   Proceed? (yes/no)
 ```
 
 **Do NOT generate until the user confirms.**
 
-### Step 10: Session setup and upload
+### Step 10: Host references
 
-Follow the main SKILL.md session folder checklist:
+Save outputs to `outputs/clone-ad-tests/` (or a descriptive subfolder) locally.
 
-1. `GET /v1/products` → resolve `productId` (default from `MASTER_CONTEXT.md`)
-2. Check for existing "Arcads API - YYYY-MM-DD" folder → create if missing
-3. Create project inside the folder → store `projectId`
-4. Upload references via `POST /v1/file-upload/get-presigned-url`:
-   - Product image → `fileType: "image/jpeg"` → auto-upscale if longest side < 1024px
-   - Source video (if v2v mode) → `fileType: "video/mp4"`
-   - Reference audio (if voice clone) → `fileType: "audio/mpeg"` or appropriate type
-5. Store all `filePath` values for the generation payload
+Host references at public HTTPS URLs (see main SKILL.md → "Reference images: hosting and public URLs"):
+   - Product image → public HTTPS URL (auto-upscale if longest side < 1024px)
+   - Source video (if v2v mode) → public HTTPS URL
+   - Reference audio (if voice clone) → public HTTPS URL
+
+Store all URLs for the generation payload.
 
 ### Step 11: Generate
 
-1. Compose the `CreateVideoDto` JSON:
-   - `model: "seedance-2.0"`
-   - `productId`, `projectId`
-   - `prompt` (from step 6)
-   - `aspectRatio`: match source video (`9:16` or `16:9`)
-   - `duration`: from step 6
-   - `resolution`: `720p` (default)
-   - `audioEnabled`: from step 8
-   - `referenceImages`: product image `filePath` (if i2v mode)
-   - `referenceVideos`: source video `filePath` (if v2v mode, product-only, no faces)
-   - `referenceAudios`: voice clip `filePath` (if voice clone)
+1. Compose the kie.ai request body:
+   ```json
+   {
+     "model": "bytedance/seedance-2",
+     "input": {
+       "prompt": "<from step 6>",
+       "aspect_ratio": "9:16",
+       "duration": 15,
+       "resolution": "720p",
+       "audio": true,
+       "reference_image_urls": ["https://..."]
+     }
+   }
+   ```
+   Swap `reference_image_urls` for `reference_video_urls` in v2v mode (they're mutually exclusive). Add `reference_audio_urls` for voice cloning.
 
-2. Ask generation count (how many variations? default 1)
+2. Ask generation count (how many variations? default 1). kie.ai has no `nbGenerations` field — fire N parallel `createTask` calls to get multiple variations.
 
-3. **Single-clip:** Fire N parallel `POST /v2/videos/generate` calls.
+3. **Single-clip:** Fire N parallel `POST /api/v1/jobs/createTask` calls.
    **Multi-clip (chained):** Fire clips **sequentially** per the chaining pipeline in step 5.
    Each clip depends on the previous clip's output — do not fire in parallel.
 
-4. **Log immediately** to `logs/arcads-api.jsonl`:
+4. **Log immediately** to `logs/kie-api.jsonl`:
    ```json
    {
      "timestamp": "...",
-     "endpoint": "POST /v2/videos/generate",
-     "model": "seedance-2.0",
-     "assetId": "...",
+     "endpoint": "POST /api/v1/jobs/createTask",
+     "model": "bytedance/seedance-2",
+     "taskId": "...",
      "request": { "duration": ..., "resolution": ..., ... },
-     "response": { "status": "pending", "creditsCharged": ... },
-     "session": { "folderName": "Arcads API - YYYY-MM-DD", "notes": "clone-ad: ..." }
+     "response": { "status": "pending" },
+     "session": { "notes": "clone-ad: ..." }
    }
    ```
 
-5. Poll `GET /v1/assets/{id}` until `generated` or `failed`
-   - Single-clip: poll all variation IDs concurrently
-   - Multi-clip: poll each clip individually, wait for `generated` before proceeding to the next
-   - Update log entry with final status, `creditsCharged`, `generationTimeSec`, URLs
+5. Poll `GET /api/v1/jobs/recordInfo?taskId=<id>` until complete or failed
+   - Single-clip: poll all variation task IDs concurrently
+   - Multi-clip: poll each clip individually, wait for completion before proceeding to the next
+   - Update log entry with final status, `generationTimeSec`, output URLs
 
-6. For multi-clip: upload each completed clip as a fresh presigned URL reference for the next clip (see chaining pipeline in step 5)
+6. For multi-clip: host each completed clip at a public HTTPS URL, then use it as the `reference_video_urls` entry for the next clip (see chaining pipeline in step 5)
 
 ### Step 12: Present results
 
-1. **Assign all assets to session project** via `POST /v1/assets/add-to-project`
-2. **Save all videos** to `outputs/clone-ad-tests/` (or a descriptive subfolder)
-3. **Open the output folder** on the user's machine so they can immediately review:
+1. **Save all videos** to `outputs/clone-ad-tests/` (or a descriptive subfolder)
+2. **Open the output folder** on the user's machine so they can immediately review:
    ```bash
    open "outputs/clone-ad-tests/"   # macOS
    ```
-4. Present watch/download URLs
-5. For multiple variations: numbered list for comparison
-6. For multi-clip:
+3. Present watch/download URLs
+4. For multiple variations: numbered list for comparison
+5. For multi-clip:
    - Present each clip separately
    - Stitch with ffmpeg using **absolute paths**:
      ```bash
@@ -423,7 +424,7 @@ Follow the main SKILL.md session folder checklist:
      ffmpeg -y -f concat -safe 0 -i /tmp/stitch-list.txt -c copy stitched-output.mp4
      ```
    - Provide both stitched file and individual clips
-7. Show credit summary (total `creditsCharged` across all clips/variations)
+6. Show cost summary in USD (total across all clips/variations)
 
 ## Seedance 2.0 constraints (quick reference)
 
@@ -432,12 +433,12 @@ likely to bite during clone-ad:
 
 | Constraint | Impact |
 |-----------|--------|
-| `referenceVideos` + `referenceImages` mutually exclusive | Cannot combine in same request (500) |
-| v2v with human faces in reference video | Content checker rejects, credits still charged |
-| `audioEnabled: true` + `referenceImages` regression | May return 500 — sanity probe first |
-| `referenceVideos` count > 1 fails | Only 1 reference video accepted despite docs saying 3 |
-| Content check bills before checking | Credits charged at create time, not refunded on rejection |
-| `endFrame` non-functional on Seedance 2.0 | Do not use |
+| `reference_video_urls` + `reference_image_urls` mutually exclusive | Cannot combine in same request |
+| v2v with human faces in reference video | Content checker rejects, cost still billed |
+| `audio: true` + `reference_image_urls` regression | May error — sanity probe first |
+| `reference_video_urls` count > 1 may fail | Only 1 reference video is known to work reliably |
+| Content check bills before checking | Cost billed at create time, not refunded on rejection |
+| `last_frame_url` non-functional on Seedance 2.0 | Do not use |
 | Prompt length | 100–260 words (Seedance sweet spot) |
 | Duration | 4–15 seconds (continuous integer) |
 | Aspect ratio | `9:16` or `16:9` only (no `1:1`) |
@@ -448,11 +449,11 @@ likely to bite during clone-ad:
 | Error | Recovery |
 |-------|----------|
 | Content checker rejects prompt | Do NOT retry same payload. Remove potentially flagged language. Tighten motion descriptions. Check for forbidden words. |
-| 500 on `audioEnabled: true` + `referenceImages` | Audio+image regression is active. **Fallback options:** (a) drop audio, (b) drop image and go text-only, (c) v2v workaround: generate silent i2v first, then run v2v with audio on top using the i2v output as reference video |
+| Error on `audio: true` + `reference_image_urls` | Audio+image regression is active. **Fallback options:** (a) drop audio, (b) drop image and go text-only, (c) v2v workaround: generate silent i2v first, then run v2v with audio on top using the i2v output as reference video |
 | v2v face rejection | Source video has humans — switch to i2v mode with user's product image |
 | Prompt too long (> 260 words) | Trim: cut filler from tone direction, compress setting details, shorten consistency anchors. Prioritize beat structure and dialogue. |
 | Source video > 15s | Split into clips at natural beat boundaries. Generate each separately. Offer to stitch. |
-| Generation fails (`status: failed`) | Check `data.error.message`. If content-related, rewrite prompt. If server error, wait and retry once. |
+| Generation fails | Check the error message on the poll response. If content-related, rewrite prompt. If server error, wait and retry once. |
 
 ## Related files
 
@@ -464,5 +465,5 @@ likely to bite during clone-ad:
 - [seedance-2-product-hero.md](../prompt-library/seedance-2-product-hero.md) — product hero formula (for elemental/effects product-only source videos)
 - [seedance-2-studio-lookbook.md](../prompt-library/seedance-2-studio-lookbook.md) — studio lookbook formula (for polished voiceover-style source videos)
 - [seedance-2-feature-walkthrough.md](../prompt-library/seedance-2-feature-walkthrough.md) — feature walkthrough formula (for fast-paced demo source videos)
-- [../../reference.md](../../reference.md) — API routes, `CreateVideoDto` schema, polling, constraints
-- [../../SKILL.md](../../SKILL.md) — main execution checklist (session setup, dialogue gate, credit estimation, logging)
+- [../../reference.md](../../reference.md) — API routes, request body shapes, polling, constraints
+- [../../SKILL.md](../../SKILL.md) — main execution checklist (session setup, dialogue gate, cost estimation, logging)

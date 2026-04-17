@@ -23,6 +23,6 @@ Replace the placeholders with your real brand rules. Agents should read `MASTER_
 
 ## Reference prompts that worked
 
-_Add dated bullets as you learn what Arcads returns for your account._
+_Add dated bullets as you learn what kie.ai returns for your account._
 
 - YYYY-MM-DD — {{SHORT_NOTE}} — prompt: “…”

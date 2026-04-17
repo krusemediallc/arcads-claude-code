@@ -9,7 +9,7 @@
 3. Agent presents the expanded prompt for user review (Step 2)
 4. **Generate 1 hero front portrait** (Step 3)
 5. **User approves the hero image** — do NOT skip this step
-6. **Generate 9 remaining angles** using the hero as `referenceImages` (Step 4)
+6. **Generate 9 remaining angles** using the hero as `input.image_input` (Step 4)
 7. **QA all images** (Step 5)
 8. **Save to `references/influencers/`** using the naming convention (Step 6)
 
@@ -50,12 +50,11 @@ Show the user:
 This is the anchor image that defines the character. All other angles will reference it. **Use a full-body shot as the hero** — this gives the model complete visual context (face, hair, build, clothing, shoes, proportions) so every subsequent angle stays consistent. A medium portrait forces the model to invent the lower half for full-body angles.
 
 1. Compose the hero prompt: prepend `"Full body front view, head to toe."` to the base prompt, add `"She/He looks directly at camera with a warm, confident expression. Relaxed stance, weight on one hip. Camera at eye level, soft even studio lighting from both sides."` Include the full outfit (e.g., jeans + white sneakers) in the hero prompt since this is the full-body reference.
-2. Call `POST /V2/images/generate` with:
-   - `productId` and `projectId` (from session folder)
-   - `model`: `nano-banana-2` (default) or `nano-banana` (Pro)
-   - `prompt`: the hero prompt
-   - `aspectRatio`: `9:16`
-3. Poll `GET /v1/assets/{id}` until `generated`.
+2. Call `POST /api/v1/jobs/createTask` with:
+   - `model`: `nano-banana-2` (default) or `nano-banana-pro` (Pro)
+   - `input.prompt`: the hero prompt
+   - `input.aspect_ratio`: `9:16`
+3. Poll `GET /api/v1/jobs/recordInfo?taskId=<id>` until the image is ready.
 4. **Post-generation QA:** Inspect for anatomy defects per [nano-banana.md](nano-banana.md). Regenerate with refined prompt if needed (up to 2 retries).
 5. Download the image to the character's `references/influencers/` folder and **open it for the user** using `open <path>` (macOS) so they can review it at full resolution in Preview.
 6. **Wait for explicit user approval.** This is the character — if they don't like it, iterate before generating 9 more images. Do NOT proceed without approval.
@@ -64,17 +63,17 @@ This is the anchor image that defines the character. All other angles will refer
 
 Once the hero is approved:
 
-1. Upload the hero image via `POST /v1/file-upload/get-presigned-url` → `PUT` to S3 → get `filePath`.
+1. Host the hero image at a public HTTPS URL (see `SKILL.md` → "Reference images: hosting and public URLs").
 2. For each of the 9 remaining angles, compose a prompt that:
    - Starts with the angle description
    - References the hero: `"The exact same person from the reference image — same face, same {hair description}, same {distinguishing features}, same {eye color} eyes, same {build} build, same {clothing}."`
    - Specifies white studio background, photorealistic
    - Includes angle-specific lighting and pose
-3. Call `POST /V2/images/generate` for each with:
-   - Same `productId`, `projectId`, `model`, `aspectRatio` as hero
-   - `referenceImages`: `[hero_filePath]`
-   - The angle-specific prompt
-4. Fire all 9 in sequence (not parallel — to avoid rate limits), poll all concurrently.
+3. Call `POST /api/v1/jobs/createTask` for each with:
+   - Same `model` and `input.aspect_ratio` as hero
+   - `input.image_input`: `[hero_public_url]`
+   - `input.prompt`: the angle-specific prompt
+4. Fire all 9 in sequence (not parallel — to avoid rate limits), poll all concurrently via `GET /api/v1/jobs/recordInfo?taskId=<id>`.
 5. QA each image per [nano-banana.md](nano-banana.md).
 
 ### The 10 angles
@@ -144,25 +143,26 @@ Files are zero-padded and named by angle:
 10-above-angle.jpg
 ```
 
-`01-hero-front.jpg` is always the approved anchor image. The agent should use this as the primary `referenceImages` entry when generating new content with this influencer.
+`01-hero-front.jpg` is always the approved anchor image. The agent should host this at a public HTTPS URL and use it as the primary `input.image_input[0]` entry when generating new content with this influencer.
 
 ### After saving
 
-- Assign all generated assets to the session project via `POST /v1/assets/add-to-project`
 - **Open the full character folder** for the user using `open <folder_path>` (macOS) so they can review all 10 images at full resolution
 - Present results as a numbered list showing all 10 angles
-- Note total credits used
+- Note total cost
 
-## Credit cost
+## Cost
+
+kie.ai bills per generation in USD. Check `MASTER_CONTEXT.md` for the Nano Banana 2 rate — ask the user if it isn't listed.
 
 ```
-Hero image:     1 × Nano Banana 2 = 0.03 credits
-9 angle images: 9 × Nano Banana 2 = 0.27 credits
+Hero image:     1 × Nano Banana 2 = $<rate>
+9 angle images: 9 × Nano Banana 2 = $<rate × 9>
 ────────────────────────────────────────────────
-Total:          10 generations     = 0.30 credits
+Total:          10 generations
 ```
 
-Plus any QA retry generations (0.03 each). Show the cost breakdown and get user confirmation before generating.
+Plus any QA retry generations (same per-image rate). Show the cost breakdown and get user confirmation before generating.
 
 ## Using a character sheet for subsequent workflows
 
@@ -170,10 +170,10 @@ Once a character sheet exists in `references/influencers/`, it can be used as in
 
 - **Product showcase** ([product-showcase.md](product-showcase.md)) — use the hero image + product photo to generate the influencer holding the product
 - **Influencer recreation** ([influencer-recreation.md](influencer-recreation.md)) — skip the "analyze reference" step since the character already exists
-- **Video generation** — upload the hero (or any angle) as `startFrame` for Veo 3.1 or `refImageAsBase64` for Sora 2
+- **Video generation** — host the hero (or any angle) at a public HTTPS URL, then pass the URL as `imageUrls[0]` with `generationType: "FIRST_AND_LAST_FRAMES_2_VIDEO"` on Veo 3.1 or as `first_frame_url` on Sora 2 image-to-video
 - **UGC selfie-style** ([ugc-selfie-style.md](ugc-selfie-style.md)) — use character sheet images as references, combine with UGC prompting formulas
 
-When referencing an existing character, load `01-hero-front.jpg` as the primary reference. For maximum consistency, load multiple angles from the folder as additional `referenceImages` (up to 14 supported by Nano Banana).
+When referencing an existing character, load `01-hero-front.jpg` as the primary reference. For maximum consistency, host multiple angles from the folder at public HTTPS URLs and pass them as additional entries in `input.image_input` (up to 14 supported by Nano Banana).
 
 ## Example
 

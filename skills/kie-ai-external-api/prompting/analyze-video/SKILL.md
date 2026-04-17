@@ -23,7 +23,7 @@ captured in a single 15-second clip, and providing a multi-clip strategy for rec
 the full effect of longer-form styles across a series of clips.
 
 The output is NOT a single prompt. It's a **template skill** saved to
-`skills/arcads-external-api/prompting/prompt-library/` that works the same way
+`skills/kie-ai-external-api/prompting/prompt-library/` that works the same way
 [seedance-2-ugc.md](../prompt-library/seedance-2-ugc.md) works — a documented formula
 with layers, variables, options, and examples that the agent can use to generate unlimited
 prompts in that style.
@@ -43,7 +43,7 @@ prompts in that style.
 Run the extraction script:
 
 ```bash
-bash "skills/arcads-external-api/prompting/analyze-video/scripts/extract-frames.sh" "<video_path>" "/tmp/video-analysis" <num_frames>
+bash "skills/kie-ai-external-api/prompting/analyze-video/scripts/extract-frames.sh" "<video_path>" "/tmp/video-analysis" <num_frames>
 ```
 
 Frame count by duration:
@@ -283,7 +283,7 @@ the prompt. Always include the standard Seedance 2.0 checks from seedance-2.md.]
 
 ## Step 6: Save and present
 
-1. Save the template to `skills/arcads-external-api/prompting/prompt-library/seedance-2-<style-name>.md`
+1. Save the template to `skills/kie-ai-external-api/prompting/prompt-library/seedance-2-<style-name>.md`
 2. Print a summary to the conversation:
    - What style was identified
    - The key layers/structure
@@ -294,61 +294,62 @@ the prompt. Always include the standard Seedance 2.0 checks from seedance-2.md.]
 If they say yes, generate a prompt for a different product/person/setting than the
 source video — this validates the template is genuinely reusable.
 
-## Step 7: Submit to Arcads API
+## Step 7: Submit to kie.ai
 
-After generating and saving a prompt, offer to submit it to Arcads for video generation.
+After generating and saving a prompt, offer to submit it to kie.ai for video generation.
 
-**API endpoint:** `POST /v2/videos/generate`
+**API endpoint:** `POST /api/v1/jobs/createTask`
 
 **Request body:**
 
 ```json
 {
-  "model": "seedance-2.0",
-  "productId": "<product-uuid>",
-  "prompt": "<the-generated-prompt>",
-  "aspectRatio": "9:16",
-  "duration": 15,
-  "resolution": "720p",
-  "audioEnabled": true,
-  "referenceImages": ["<filePath-from-presigned-upload>"]
+  "model": "bytedance/seedance-2",
+  "input": {
+    "prompt": "<the-generated-prompt>",
+    "aspect_ratio": "9:16",
+    "duration": 15,
+    "resolution": "720p",
+    "audio": true,
+    "reference_image_urls": ["https://i.imgur.com/xxx.jpg"]
+  }
 }
 ```
 
 **Before submitting:**
 
-1. Ask the user for a `productId` (or use the default from `MASTER_CONTEXT.md`).
-2. Ask whether to enable audio (`audioEnabled`).
-3. If the user has product images, upload via `POST /v1/file-upload/get-presigned-url` and pass the `filePath` values in `referenceImages`.
-4. Show the credit cost estimate and wait for confirmation.
-5. Submit via the API. Poll `GET /v1/assets/{id}` until `status` is `generated` or `failed`.
+1. Ask whether to enable audio (`input.audio`).
+2. If the user has product images, host them at a public HTTPS URL (see `SKILL.md` → "Reference images: hosting and public URLs") and pass the URLs in `input.reference_image_urls`. Base64 is no longer supported.
+3. Show the cost estimate in USD and wait for confirmation.
+4. Submit via the API. Poll `GET /api/v1/jobs/recordInfo?taskId=<id>` until the task is complete.
 
-**For multi-clip series**, submit each clip separately and present all results together.
+**For multi-clip series**, submit each clip as a separate `createTask` call and present all results together.
 
 Include this API submission section in every template you generate:
 
 ```markdown
-## Submitting to Arcads
+## Submitting to kie.ai
 
 After filling in the template and generating your prompt:
 
-1. Upload product images via `POST /v1/file-upload/get-presigned-url`
-2. Submit via `POST /v2/videos/generate`:
+1. Host product images at a public HTTPS URL (see SKILL.md → "Reference images: hosting and public URLs").
+2. Submit via `POST /api/v1/jobs/createTask`:
 
 \```json
 {
-  "model": "seedance-2.0",
-  "productId": "<your-product-id>",
-  "prompt": "<your-filled-prompt>",
-  "aspectRatio": "9:16",
-  "duration": 15,
-  "resolution": "720p",
-  "audioEnabled": true,
-  "referenceImages": ["<filePath>"]
+  "model": "bytedance/seedance-2",
+  "input": {
+    "prompt": "<your-filled-prompt>",
+    "aspect_ratio": "9:16",
+    "duration": 15,
+    "resolution": "720p",
+    "audio": true,
+    "reference_image_urls": ["https://i.imgur.com/xxx.jpg"]
+  }
 }
 \```
 
-3. Poll `GET /v1/assets/{id}` until `status: "generated"`
+3. Poll `GET /api/v1/jobs/recordInfo?taskId=<id>` until the task completes.
 
 For multi-clip series, submit each clip as a separate API call.
 ```
@@ -356,9 +357,9 @@ For multi-clip series, submit each clip as a separate API call.
 ## File map
 
 ```
-skills/arcads-external-api/
+skills/kie-ai-external-api/
 ├── SKILL.md                              ← main skill (decision tree, execution checklist)
-├── reference.md                          ← API routes, CreateVideoDto, polling
+├── reference.md                          ← API routes, body shapes, polling
 ├── prompting/
 │   ├── guide.md                          ← marketing brief → API
 │   ├── analyze-video/
