@@ -16,6 +16,7 @@ outputs/
 output/
 references/youtube thumbnail/
 
+
 # Disposable one-off thumbnail iteration scripts (not the canonical skill script)
 scripts/generate-thumbnails.sh
 scripts/generate-thumbnails-*.sh
