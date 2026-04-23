@@ -1,8 +1,18 @@
 #!/usr/bin/env bash
 # Copies all canonical skills from skills/ to Claude Code and Cursor paths.
-# Called automatically by scripts/setup.sh. Run manually after editing any file in skills/.
+# Called automatically by scripts/setup.sh and by the SessionStart hook in .claude/settings.json.
+# Run manually after editing any file under skills/.
+#
+# Resolves project root robustly so it works whether invoked as `scripts/sync-skill.sh`
+# (the legacy location) or `shared/scripts/sync-skill.sh` (the propagated copy).
 set -euo pipefail
+
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# If we landed inside shared/, the actual project root is one level up.
+if [[ "$(basename "$ROOT")" == "shared" ]]; then
+  ROOT="$(dirname "$ROOT")"
+fi
+
 SRC_DIR="$ROOT/skills"
 
 if [[ ! -d "$SRC_DIR" ]]; then
