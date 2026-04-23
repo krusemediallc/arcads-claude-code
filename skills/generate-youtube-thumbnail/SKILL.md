@@ -21,9 +21,9 @@ Trigger on phrases like:
 ## Read order
 
 1. **This file** — workflow, decision tree, batch generation
-2. **[prompting/guide.md](prompting/guide.md)** — likeness alignment, expressions cheat sheet, prompt structure
-3. **[prompting/formulas.md](prompting/formulas.md)** — 5 proven thumbnail formulas with templates
-4. **[scripts/generate-batch.sh](scripts/generate-batch.sh)** — copy/adapt this script for new batches
+2. **[shared/skills/generate-youtube-thumbnail/prompting/guide.md](../../shared/skills/generate-youtube-thumbnail/prompting/guide.md)** — likeness alignment, expressions cheat sheet, prompt structure (shared across all generative-AI APIs in this portfolio)
+3. **[shared/skills/generate-youtube-thumbnail/prompting/formulas.md](../../shared/skills/generate-youtube-thumbnail/prompting/formulas.md)** — 5 proven thumbnail formulas with templates (shared)
+4. **[scripts/generate-batch.sh](scripts/generate-batch.sh)** — Arcads-specific batch script (presigned upload + S3 PUT pipeline)
 
 ## Prerequisites
 
@@ -66,7 +66,7 @@ Always present cost as an **estimate** before firing:
 
 ### 4. Pick a formula
 
-See **[prompting/formulas.md](prompting/formulas.md)** for the 5 proven formulas. Match the user's intent:
+See **[shared/skills/generate-youtube-thumbnail/prompting/formulas.md](../../shared/skills/generate-youtube-thumbnail/prompting/formulas.md)** for the 5 proven formulas. Match the user's intent:
 
 | User says... | Use formula |
 |---|---|
@@ -78,7 +78,7 @@ See **[prompting/formulas.md](prompting/formulas.md)** for the 5 proven formulas
 
 ### 5. Compose prompts
 
-Follow the template in **[prompting/guide.md](prompting/guide.md)**:
+Follow the template in **[shared/skills/generate-youtube-thumbnail/prompting/guide.md](../../shared/skills/generate-youtube-thumbnail/prompting/guide.md)**:
 
 ```
 YouTube thumbnail, 16:9 landscape.
@@ -92,7 +92,7 @@ Style: [aesthetic notes]
 Avoid: distorted face, extra fingers, hands visible, blurry logos, generic face
 ```
 
-**Always include the CRITICAL CHARACTER LIKENESS block** when the subject is a real person. See `prompting/guide.md`.
+**Always include the CRITICAL CHARACTER LIKENESS block** when the subject is a real person. See `shared/skills/generate-youtube-thumbnail/prompting/guide.md`.
 
 ### 6. Generate (use the batch script)
 
@@ -178,7 +178,7 @@ Always present as estimates, confirm exact in the Arcads platform.
 
 ## See also
 
-- **[prompting/guide.md](prompting/guide.md)** — likeness alignment, expressions, prompt structure
-- **[prompting/formulas.md](prompting/formulas.md)** — 5 proven CTR formulas with prompt templates
-- **[scripts/generate-batch.sh](scripts/generate-batch.sh)** — reusable bash batch generator
+- **[shared/skills/generate-youtube-thumbnail/prompting/guide.md](../../shared/skills/generate-youtube-thumbnail/prompting/guide.md)** — likeness alignment, expressions, prompt structure (shared across APIs)
+- **[shared/skills/generate-youtube-thumbnail/prompting/formulas.md](../../shared/skills/generate-youtube-thumbnail/prompting/formulas.md)** — 5 proven CTR formulas with prompt templates (shared)
+- **[scripts/generate-batch.sh](scripts/generate-batch.sh)** — Arcads-specific bash batch generator (presigned upload pipeline)
 - **[arcads-external-api skill](../arcads-external-api/SKILL.md)** — underlying API reference for Nano Banana 2 endpoint and reference upload pipeline

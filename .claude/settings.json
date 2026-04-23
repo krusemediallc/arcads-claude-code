@@ -1,0 +1,11 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          { "type": "command", "command": "bash shared/scripts/sync-skill.sh" }
+        ]
+      }
+    ]
+  }
+}

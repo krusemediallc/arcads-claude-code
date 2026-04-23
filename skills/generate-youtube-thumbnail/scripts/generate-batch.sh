@@ -31,7 +31,7 @@ API="https://external-api.arcads.ai"
 PRODUCT_ID="REPLACE_WITH_YOUR_PRODUCT_ID"  # from MASTER_CONTEXT.md
 MODEL="nano-banana-2"
 ASPECT="16:9"  # 1:1, 16:9, or 9:16
-OUTPUT_DIR="output/thumbnails-$(date +%Y%m%d-%H%M%S)"
+OUTPUT_DIR="${OUTPUT_BASE:-output}/thumbnails-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$OUTPUT_DIR"
 TMP_DIR="$OUTPUT_DIR/.tmp"
 mkdir -p "$TMP_DIR"
