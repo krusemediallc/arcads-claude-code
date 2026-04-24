@@ -2,6 +2,24 @@
 
 Create AI marketing videos and images using your [Arcads](https://arcads.ai/?via=caleb) account, powered by AI agents in **Claude Code** or **Cursor**. Supports Sora 2, Veo 3.1, Kling 3.0, and Nano Banana.
 
+## Level up your media buying with AI
+
+This repo handles the **creative** side. If you want the full system — scaling, ROAS, automation, and the AI workflows behind 8-figure ad accounts — come build with me inside **[The AI Ad Alchemists](https://skool.com/mrpaidsocial)**.
+
+It's a private Skool community of **460+ media buyers** managing 8-figure ad accounts, run by me (Caleb — aka "Mr. Paid Social") drawing on 12 years and **$150M+ in ad spend**. Inside you get:
+
+- **Meta Masterclass** — the exact systems I use to scale Meta ads (valued at $1.2k)
+- **Custom GPTs** for ad copywriting and compliance
+- **Ad swipe files** + breakdowns of what's working *right now*
+- **Airtable & Google Sheets scaling systems** — the operational backbone behind 8-fig accounts
+- **AI tool walkthroughs** — including the Ad Agent (built in Claude Code) and the GenAI system in Airtable I'm shipping next
+- **Monthly group calls** + guest speakers
+- **Direct access** to me and the network
+
+If you're using this repo to crank out creative, the community is where you learn to **turn that creative into ROAS at scale**.
+
+**→ [Join The AI Ad Alchemists — $97/month](https://skool.com/mrpaidsocial)**
+
 ## Get started (5 minutes)
 
 ### 1. Clone this repo
