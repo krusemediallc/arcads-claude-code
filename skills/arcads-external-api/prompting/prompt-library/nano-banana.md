@@ -34,7 +34,7 @@ See [reference.md](../../reference.md) for the full schema. Key fields:
 
 - `productId` (required) — UUID of the Arcads product
 - `prompt` (required) — follow the template and checklist below
-- `model` (required) — for Nano Banana stills, default **`nano-banana-2`**; optional **`nano-banana`** (Nano Banana Pro). Other image engines: `gpt-image`, `soul`, `grok_image`, `seedream`, `seedream_5_lite`
+- `model` (required) — for Nano Banana stills, default **`nano-banana-2`**; optional **`nano-banana`** (Nano Banana Pro). Other image engines: `gpt-image` (older), `gpt-image-2` (ChatGPT Images 2 — 32 credits), `soul`, `grok_image`, `seedream`, `seedream_5_lite`
 - `aspectRatio` (required) — `1:1`, `16:9`, `9:16`
 - `referenceImages` (optional) — array of `filePath` strings from presigned upload (OpenAPI); see [reference.md](../../reference.md) for reference limits per model
 - `projectId` (optional) — assign to a session project

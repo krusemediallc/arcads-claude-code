@@ -73,17 +73,29 @@ These still work and are kept for backward compatibility. Prefer the v2 unified 
 
 ## Polling and delivery
 
+**Which polling endpoint?** Match by the `type` field on the create response, not by whether the model "is a video":
+
+| Create response `type` | Poll endpoint | Status field |
+|------------------------|---------------|--------------|
+| `sora2`, `sora2-pro`, `veo31`, `kling-2.6`, `kling-3.0`, `grok-video` | `GET /v1/videos/{id}` | `videoStatus` |
+| **`seedance_20`** | **`GET /v1/assets/{id}`** | `status` |
+| `nano-banana`, `nano-banana-2`, `gpt-image`, `gpt-image-2`, `soul`, `grok_image`, `seedream`, `seedream_5_lite` | `GET /v1/assets/{id}` | `status` |
+| b-roll, scene | `GET /v1/assets/{id}` | `status` |
+
+**⚠️ Seedance 2.0 is in the assets family, not the videos family (confirmed 2026-05-19):** Despite being a video model on the v2 unified `/v2/videos/generate` endpoint, `seedance-2.0` returns `type: "seedance_20"` and its job record lives at `/v1/assets/{id}`. Polling `/v1/videos/{id}` for a Seedance 2.0 job returns **`HTTP 404 Not Found`**. This is easy to miss because the model is created via the videos endpoint — check the response `type` to pick the polling path, or just always check both with a fallback.
+
 ### Videos (`VideoDto`)
 
-- `GET /v1/videos/{videoId}` — includes `videoUrl`, `videoStatus`.
+- `GET /v1/videos/{videoId}` — includes `videoUrl`, `videoStatus`. Used by sora2, veo31, kling, grok-video.
 - `GET /v1/videos/{videoId}/watch` — watch link when applicable.
 
-### Assets (b-roll, scene, many generated types — including Nano Banana images)
+### Assets (b-roll, scene, many generated types — including Nano Banana images **and Seedance 2.0 videos**)
 
 - `GET /v1/assets/{id}` — `status` enum: `created` | `pending` | `generated` | `failed` | `uploaded`.
 - Poll every few seconds until `generated` or `failed` (back off if the API rate-limits).
 - `GET /v1/assets/{id}/watch` — watch link when applicable.
 - For Nano Banana images, poll the same way — the response will include image URLs instead of video URLs.
+- For Seedance 2.0, the final mp4 URL is in the top-level `url` field on the asset response (a presigned S3 URL, typically `argoseyes.s3-accelerate.amazonaws.com/production/videoassets/<id>.mp4`).
 
 ### Script / actor pipeline
 
@@ -124,10 +136,10 @@ On Seedance 2.0, `referenceVideos` and `referenceImages` **cannot be combined** 
 
 This is not documented in the OpenAPI spec — add a sanity check before firing any Seedance 2.0 call and refuse to mix the two.
 
-**Seedance 2.0 — confirmed pricing (2026-04-09):**
+**Seedance 2.0 — confirmed pricing (re-validated 2026-05-19):**
 
-- **Image-to-video:** ~0.06 credits/sec. 4s ≈ 0.24, 15s ≈ 0.9. Audio reference does NOT change price.
-- **Video-to-video:** ~0.1 credits/sec. 15s ≈ 1.5 (exact). Base rate cited by user was 1.0 (likely for a shorter duration).
+- **Image-to-video @ 720p:** **~48 credits/sec.** 8s = 384, 10s = 480, 12s = 576, 15s ≈ 720. Audio reference does NOT change price (10s + `audioEnabled: true` also charged 480). The earlier 2026-04-09 note of "~0.06 credits/sec" was incorrect — re-tested across 8 production runs on 2026-05-19 and the rate is two orders of magnitude higher. MASTER_CONTEXT.md was correct all along.
+- **Video-to-video @ 720p:** likely also ~80 credits/sec. Earlier "~0.1 credits/sec" was off by the same factor — re-validate next v2v run.
 
 **Kling 3.0 — confirmed pricing (2026-04-09):**
 
@@ -282,9 +294,9 @@ There is no separate `nano-banana-pro` string; "Nano Banana Pro" maps to `nano-b
 
 - `productId` (required) — UUID of the Arcads product
 - `prompt` (required) — the image prompt (follow `prompting/prompt-library/nano-banana.md`)
-- `model` (required) — enum includes `nano-banana`, `nano-banana-2`, `gpt-image`, `soul`, `grok_image`, `seedream`, `seedream_5_lite`
+- `model` (required) — enum includes `nano-banana`, `nano-banana-2`, `gpt-image`, `gpt-image-2`, `soul`, `grok_image`, `seedream`, `seedream_5_lite`
 - `aspectRatio` (required) — `1:1`, `16:9`, `9:16`
-- `referenceImages` (optional) — array of `filePath` strings from `POST /v1/file-upload/get-presigned-url` (max 14 for `nano-banana` and `nano-banana-2` per OpenAPI)
+- `referenceImages` (optional) — array of `filePath` strings from `POST /v1/file-upload/get-presigned-url`. **Per-model caps:** `nano-banana`/`nano-banana-2` max 14; `gpt-image-2` **max 5** (observed 2026-04-23 via `400 Max 5 reference image(s) allowed`). Confirm per-model caps empirically before batching.
 - `projectId` (optional) — assign to a project on creation
 - `nbGenerations` (optional) — SOUL model only (1–10)
 
@@ -371,6 +383,23 @@ Prefer `CreateVideoDto` with `model: "veo31"` via `POST /v2/videos/generate`.
 - Then use `filePath` value in `CreateVideoDto` fields.
 
 **Seedance 2.0 file uploads:** Use the same presigned URL flow for `referenceVideos` (pass `fileType: "video/mp4"`) and `referenceAudios` (pass `fileType: "audio/mp3"` or similar).
+
+**⚠️ Presigned uploads are one-time-use (confirmed 2026-05-19):** A `filePath` returned by `POST /v1/file-upload/get-presigned-url` works exactly **once**. After the first generation call consumes it (e.g. `POST /v2/images/generate` with `referenceImages: [filePath]`), subsequent calls referencing the same `filePath` return **`HTTP 400 REFERENCE_FILE_NOT_FOUND`**.
+
+If you need to reuse the same source image (e.g. anchor identity across multiple sequential generations from one approved hero still), **re-upload the file before each call** to get a fresh `filePath`. Loop:
+
+```bash
+for n in 1 2 3 4 5; do
+  PRESIGN=$(curl -sS -X POST -H "Authorization: $ARCADS_BASIC_AUTH" -H "Content-Type: application/json" \
+    -d '{"fileType":"image/png"}' "$BASE/v1/file-upload/get-presigned-url")
+  PRESIGN_URL=$(echo "$PRESIGN" | jq -r .presignedUrl)
+  FP_n=$(echo "$PRESIGN" | jq -r .filePath)
+  curl -sS -o /dev/null -X PUT -H "Content-Type: image/png" --data-binary @hero.png "$PRESIGN_URL"
+  # FP_n is now usable for one call only
+done
+```
+
+This is **not** an `expiresIn` issue — the upload is fresh (seconds old), but the `filePath` is consumed once. Burn one upload per downstream call.
 
 ### Image minimum size — auto-upscale
 
