@@ -1,6 +1,6 @@
 # Arcads AI Video — Agent Skill Pack
 
-Create AI marketing videos and images using your [Arcads](https://arcads.ai/?via=caleb) account, powered by AI agents in **Claude Code** or **Cursor**. Supports Sora 2, Veo 3.1, Kling 3.0, and Nano Banana.
+Create AI marketing videos and images using your [Arcads](https://arcads.ai/?via=caleb) account, powered by AI agents in **Claude Code** or **Cursor**. Supports Sora 2, Veo 3.1, Kling 3.0, and Nano Banana 2.
 
 ## Level up your media buying with AI
 
