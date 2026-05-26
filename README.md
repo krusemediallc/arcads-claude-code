@@ -76,6 +76,12 @@ Uses Veo 3.1 with `startFrame` to animate your approved UGC still. The video sta
 
 Uses Sora 2 with your product photo as a style reference to generate a video directly — no starting frame needed. Faster but less control over the person's appearance.
 
+#### Static Meta image ad creative (37-template library)
+
+> "Make me an Apple Notes-style ad for my product" / "Generate a Forbes editorial ad" / "Clone this comparison-table ad as a template"
+
+A four-skill family for static Meta image ads with a shared library of **37 validated prompt templates** (Apple Notes lists, editorial hero, fake Google search, comparison tables, sticky-note flatlays, fake Slack threads, ChatGPT-conversation ads, iMessage screenshots, magazine cover, billboard, museum exhibit, more). Pick **`chatgpt-image-ad`** for typography-heavy / UI-mimicry creatives (gpt-image-2) and **`nano-banana-image-ad`** for photoreal / lifestyle / multi-reference creatives (Nano Banana). The companion **`image-ad-clone-chatgpt`** / **`image-ad-clone-nano-banana`** skills reverse-engineer any existing ad you have into a new library entry. Output is image files; pair with the separate `meta-ad-builder` skill to publish as paused Meta ads. **Read `shared/skills/image-ad-prompting/OVERVIEW.md` first** — it has the decision tree, the aspect-ratio compatibility matrix per backend, and the standard generate / clone workflows.
+
 #### Other things to try
 
 - "Recreate this influencer's look from a reference photo"
@@ -86,7 +92,14 @@ Uses Sora 2 with your product photo as a style reference to generate a video dir
 
 | Path | What it does |
 |------|-------------|
-| `skills/arcads-external-api/` | The skill: API reference, prompting guide, per-model prompt library |
+| `skills/arcads-external-api/` | The core skill: API reference, prompting guide, per-model prompt library |
+| `skills/chatgpt-image-ad/` | Static Meta image-ad creatives via gpt-image-2 (typography / UI mimicry). Live-validated. |
+| `skills/nano-banana-image-ad/` | Static Meta image-ad creatives via Nano Banana 2 / Pro / Edit (photoreal / lifestyle). Live-validated. |
+| `skills/image-ad-clone-chatgpt/` | Reverse-engineer an existing ad image into a reusable gpt-image-2 template. |
+| `skills/image-ad-clone-nano-banana/` | Reverse-engineer an existing ad image into a reusable Nano Banana template. |
+| `shared/skills/image-ad-prompting/` | Shared brain: 37 validated templates, safety suffixes, entry format, ecosystem `OVERVIEW.md`. |
+| `shared/skills/meta-ad-builder/` | Publish finished creatives as paused Meta ads via the Meta Marketing API. |
+| `shared/scripts/check-context.sh` | SessionStart banner — shows installed skills + `.env` / `MASTER_CONTEXT.md` status + ecosystem pointers. |
 | `MASTER_CONTEXT.template.md` | Template for your workspace context (credit costs, brand voice, learnings) |
 | `MASTER_CONTEXT.md` | Your personalized copy (created by setup, not committed to git) |
 | `.env` | Your API key (created by setup, never committed) |
