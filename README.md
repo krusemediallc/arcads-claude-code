@@ -1,6 +1,6 @@
 # Arcads AI Video — Agent Skill Pack
 
-Create AI marketing videos and images using your [Arcads](https://arcads.ai/?via=caleb) account, powered by AI agents in **Claude Code** or **Cursor**. Supports Sora 2, Veo 3.1, Kling 3.0, and Nano Banana.
+Create AI marketing videos and images using your [Arcads](https://arcads.ai/?via=caleb) account, powered by AI agents in **Claude Code** or **Cursor**. Supports the full Arcads creative stack — **Seedance 2.0** (flagship video), **Sora 2**, **Veo 3.1**, **Kling 3.0**, **Grok Video**, **Nano Banana 2 / Pro / Edit**, **ChatGPT Image 2**, **OmniHuman**, and **Audio-driven** — plus a 37-template static Meta image-ad library and a pipeline for **Pixar-style** and **claymation** animated ads.
 
 ## Level up your media buying with AI
 
@@ -25,8 +25,8 @@ If you're using this repo to crank out creative, the community is where you lear
 ### 1. Clone this repo
 
 ```bash
-git clone <repo-url>
-cd arcads-agent-skills
+git clone https://github.com/krusemediallc/arcads-claude-code.git
+cd arcads-claude-code
 ```
 
 ### 2. Run setup
@@ -36,7 +36,7 @@ cd arcads-agent-skills
 ```
 
 This will:
-- If you need an Arcads account first, sign up here: [arcads.ai/?via=caleb](https://arcads.ai/?via=caleb)
+- Sign up if you need an Arcads account: [arcads.ai/?via=caleb](https://arcads.ai/?via=caleb)
 - Ask for your **Arcads API key** (find it at [app.arcads.ai/settings/api](https://app.arcads.ai/settings/api))
 - Save it securely in `.env` (never committed to git)
 - Verify your connection to Arcads
@@ -44,69 +44,212 @@ This will:
 
 ### 3. Open in your AI editor
 
-**Claude Code:** Open the folder. The agent loads the Arcads skill automatically.
+**Claude Code:** Open the folder. A `SessionStart` hook runs and prints an orientation banner showing which skills are installed, whether your `.env` and `MASTER_CONTEXT.md` are set up, and where the docs live.
 
-**Cursor:** Open the folder. The skill is at `.cursor/skills/arcads-external-api/`.
+**Cursor:** Open the folder. Same skills are exposed at `.cursor/skills/`.
 
 ### 4. Start creating
 
-The agent handles API calls, polling, prompt engineering, and file organization. Here are the main workflows:
+The agent handles API calls, polling, prompt engineering, file organization, and cost confirmation. Workflows are grouped by what you want to make.
 
-#### Create an AI influencer (character sheet)
+---
 
-> "Create a new AI influencer — a 22-year-old college student with freckles"
+### 🎬 Seedance 2.0 videos (the flagship — start here)
 
-The agent generates a full-body hero image for your approval, then creates 9 additional angles (3/4 views, profile, closeup, etc.) using the hero as a reference. All 10 images are saved to `references/influencers/` for future use.
+Seedance 2.0 is the most flexible model in the stack — 4–15s clips, native audio, image-to-video or video-to-video, reference images, multiple shot styles. Five prompt formulas ship with the skill:
 
-#### Generate UGC product selfie stills
+#### UGC selfie-style product review
 
-> "Generate a UGC selfie of Sofia holding the Arcads Cola can in her bedroom"
+> "Make a 12-second Seedance UGC video — woman in a kitchen, holding the product, says she stopped buying [competitor]"
 
-Combines your character + product photo + style references from `references/aesthetics/ugc-selfie/` into an authentic-looking iPhone selfie frame grab. Includes skin realism and camera imperfections to fight AI's polished default.
+Uses the 9-layer UGC formula tuned for Seedance 2.0 (iPhone-shot aesthetic, natural eye-contact breaks, casual delivery). See `skills/arcads-external-api/prompting/prompt-library/seedance-2-ugc.md`.
 
-#### Animate a still into video
+#### Premium product reveal (no person)
 
-> "Turn that image into a video — have her talk about the product"
+> "Premium reveal of [product] — dark void, text narrative, hero rotation"
 
-Uses Veo 3.1 with `startFrame` to animate your approved UGC still. The video starts from that exact image with natural human motion (eye contact breaks, head tilts, body shifts) and dialogue.
+Dark-void aesthetic, text overlays narrating the product's positioning, no person on screen. See `seedance-2-premium-reveal.md`.
 
-#### Quick UGC video (no starting frame)
+#### Product hero with elemental effects
 
-> "Generate a UGC video ad for this product" + drop a product photo
+> "Seedance product hero — water splash, mist, slow rotation"
 
-Uses Sora 2 with your product photo as a style reference to generate a video directly — no starting frame needed. Faster but less control over the person's appearance.
+Splash, mist, light rays, slow rotation. See `seedance-2-product-hero.md`.
 
-#### Static Meta image ad creative (37-template library)
+#### Studio lookbook with voiceover
+
+> "Studio lookbook of [product] — multi-look, polished, with voiceover script"
+
+Polished editorial / lookbook style, multi-shot, with embedded dialogue. See `seedance-2-studio-lookbook.md`.
+
+#### Feature walkthrough demo
+
+> "Seedance feature walkthrough — fast-paced, show off [features]"
+
+Fast-paced product-demo cuts. See `seedance-2-feature-walkthrough.md`.
+
+---
+
+### 🎬 Other video models
+
+#### Sora 2 (text-to-video, up to 20s)
+
+> "Generate a 16-second Sora video of [scene]" — optionally drop a product photo as a style reference.
+
+Sora 2 handles longer durations than Veo. The agent auto-selects `duration` from your script's word count (~2.5 words/sec). Sora 2 remix is also supported via `POST /v1/sora2/remix/video` for remixing an existing asset.
+
+#### Veo 3.1 (starting-frame animation)
+
+> "Animate this Nano Banana still into an 8-second Veo with dialogue"
+
+Veo 3.1 with `startFrame` is the standard path for **UGC stills → video**. The video starts from your exact image with natural human motion and embedded dialogue. The agent confirms the dialogue separately before generating (the MANDATORY dialogue gate).
+
+#### Kling 3.0 (b-roll / scene)
+
+> "Make a 5-second b-roll clip of [scene]" or "Generate a scene of [environment]"
+
+Kling 3.0 is the b-roll / scene workhorse. Hits the dedicated `POST /v1/b-roll` and `POST /v1/scene` endpoints.
+
+#### Grok Video
+
+> "Generate a Grok video of [scene]"
+
+Hits `POST /v2/videos/generate` with `model: "grok-video"`.
+
+#### OmniHuman / Audio-driven
+
+> "OmniHuman avatar of [person] delivering [script]" or "Audio-driven video lip-synced to [audio file]"
+
+`POST /v1/omnihuman` for talking-avatar workflows; `POST /v1/audio-driven` for lip-sync against an audio file.
+
+---
+
+### 🖼️ Image generation (Nano Banana + ChatGPT Image 2)
+
+#### Create a new AI influencer (10-image character sheet)
+
+> "Create a new AI influencer — 22-year-old college student with freckles, golden-hour kitchen lighting"
+
+Two-pass workflow: (1) generate a hero front portrait via Nano Banana, get your approval, (2) generate 9 additional angles (3/4 views, profile, close-up, expressions) with the hero as the reference. All 10 saved to `references/influencers/` for future reuse.
+
+#### UGC product selfie still
+
+> "Generate a UGC selfie of Sofia holding [product] in her bedroom"
+
+Combines your character hero + product photo + style references from `references/aesthetics/ugc-selfie/` into an authentic-looking iPhone selfie frame grab. Includes skin realism and camera imperfections to fight AI's polished default.
+
+#### Product showcase still (Nano Banana → Veo / Seedance video)
+
+> "AI person holding [product] talking about [feature]"
+
+Two-step: Nano Banana still of person + product → user approves → start-frame → video via Veo 3.1 or Seedance 2.0.
+
+#### Recreate an influencer from a reference photo
+
+> "Recreate this influencer's look from this reference photo"
+
+Two-step: Nano Banana still from `refImageAsBase64` → user approves → Veo 3.1 with `startFrame`.
+
+#### Nano Banana model choice
+
+Default is `nano-banana-2`. Use `model: "nano-banana"` for **Nano Banana Pro** (Gemini 3 Pro Image — higher fidelity, locks character identity tighter across reference batches). `nano-banana-edit` for inpainting.
+
+---
+
+### 📸 Static Meta image ad creative (37-template library)
 
 > "Make me an Apple Notes-style ad for my product" / "Generate a Forbes editorial ad" / "Clone this comparison-table ad as a template"
 
-A four-skill family for static Meta image ads with a shared library of **37 validated prompt templates** (Apple Notes lists, editorial hero, fake Google search, comparison tables, sticky-note flatlays, fake Slack threads, ChatGPT-conversation ads, iMessage screenshots, magazine cover, billboard, museum exhibit, more). Pick **`chatgpt-image-ad`** for typography-heavy / UI-mimicry creatives (gpt-image-2) and **`nano-banana-image-ad`** for photoreal / lifestyle / multi-reference creatives (Nano Banana). The companion **`image-ad-clone-chatgpt`** / **`image-ad-clone-nano-banana`** skills reverse-engineer any existing ad you have into a new library entry. Output is image files; pair with the separate `meta-ad-builder` skill to publish as paused Meta ads. **Read `shared/skills/image-ad-prompting/OVERVIEW.md` first** — it has the decision tree, the aspect-ratio compatibility matrix per backend, and the standard generate / clone workflows.
+A four-skill family for static Meta image ads with a shared library of **37 validated prompt templates** (Apple Notes lists, editorial hero, fake Google search, comparison tables, sticky-note flatlays, fake Slack threads, ChatGPT-conversation ads, iMessage screenshots, magazine cover, billboard, museum exhibit, weather forecast UI, scratch-off ticket, founder letter, dating-app card, more).
 
-#### Other things to try
+- **`chatgpt-image-ad`** — typography-heavy / UI-mimicry creatives (gpt-image-2)
+- **`nano-banana-image-ad`** — photoreal / lifestyle / multi-reference creatives (Nano Banana 2 / Pro / Edit)
+- **`image-ad-clone-chatgpt`** / **`image-ad-clone-nano-banana`** — reverse-engineer any existing ad image into a new library entry
 
-- "Recreate this influencer's look from a reference photo"
-- "Make a Nano Banana product hero image"
-- "Generate 5 different ad variations for this product"
+Output is image files. Pair with the `meta-ad-builder` skill to publish as paused Meta ads. **Read `shared/skills/image-ad-prompting/OVERVIEW.md` first** — it has the decision tree (which backend for which template), the aspect-ratio compatibility matrix per backend, and the standard generate / clone workflows. Live-validated end-to-end against the Arcads API.
+
+---
+
+### 🎞️ Multi-step animated ad pipelines
+
+#### Pixar-style 3D animated ad
+
+> "Make a Pixar-style ad for [product] — anthropomorphized mascot, 8-beat story arc"
+
+Lock cast sheet → ChatGPT Image 2 storyboard stills (sequential, prior frame as ref for identity lock, max 5 `referenceImages`) → Seedance 2.0 image-to-video per beat → ffmpeg stitch + burn captions. See `shared/skills/pixar-style-ad/prompting/guide.md`.
+
+#### Claymation / Aardman-style ad
+
+> "Make a claymation ad — sculpted plasticine characters, narrator-driven, 60–115s"
+
+Same backbone as Pixar with an 8-beat narrator-driven story arc and clay textures. ChatGPT Image 2 storyboard → Seedance 2.0 i2v → ffmpeg stitch with optional `fps=12,fps=24` stop-motion judder. VO generated externally (ElevenLabs) and mixed in post. See `shared/skills/claymation-ad/prompting/guide.md`.
+
+#### YouTube thumbnails (5 CTR formulas)
+
+> "Make 6 YouTube thumbnail variations with my face and product"
+
+Specialized `generate-youtube-thumbnail` skill: peace-sign/branding, real-vs-AI comparison, terminal flow, reaction shock, before/after split. Likeness lockdown via 5+ face references. Parallel batch firing against Nano Banana 2. See `skills/generate-youtube-thumbnail/`.
+
+#### Burn captions onto a finished video
+
+> "Add captions to this MP4"
+
+Out-of-band post-step (no Arcads call) that works on any source — Pixar, claymation, UGC, B-roll. HyperFrames + Whisper `medium.en` for transcription → group word-level transcript into reading phrases → render captions-only HTML over `#ff00ff` magenta → ffmpeg chroma-key overlay. See `shared/skills/caption-video/prompting/guide.md`.
+
+---
+
+### 🔄 Reverse-engineer existing creative
+
+#### Analyze a reference video into a Seedance template
+
+> "Reverse-engineer this video into a reusable Seedance template"
+
+The `analyze-video` workflow under `skills/arcads-external-api/prompting/analyze-video/` extracts the structure of a reference video into a parameterizable Seedance 2.0 prompt template.
+
+#### Clone an existing video ad for a different product
+
+> "Clone this video ad for our new product"
+
+`skills/arcads-external-api/prompting/clone-ad/` — end-to-end: analyze the reference → adapt to the new product → generate. The companion to `analyze-video` when you want to ship the cloned version directly.
+
+#### Clone a static image ad into the prompt library
+
+> "Reverse-engineer this image ad as a reusable template"
+
+The `image-ad-clone-chatgpt` and `image-ad-clone-nano-banana` skills produce parameterizable entries for the 37-template library (see above).
+
+---
+
+### 📤 Publish creatives as paused Meta ads
+
+> "Publish this approved creative as a paused Meta ad in my account"
+
+The cross-API `meta-ad-builder` skill (in `shared/skills/`) takes a finished creative path and uploads it via the Meta Marketing API. Every ad is created PAUSED — you review and launch manually in Ads Manager. Also has a research path to pull top-spending ads and competitor ads. Auth via `META_*` keys in `.env`.
 
 ## What's in the box
 
 | Path | What it does |
 |------|-------------|
-| `skills/arcads-external-api/` | The core skill: API reference, prompting guide, per-model prompt library |
+| `skills/arcads-external-api/` | **The core skill.** API reference, prompting guide, per-model prompt libraries (Seedance / Sora / Veo / Kling / Nano Banana), analyze-video + clone-ad sub-workflows. |
+| `skills/generate-youtube-thumbnail/` | 5 CTR-tested YouTube thumbnail formulas with parallel batch firing against Nano Banana 2. |
 | `skills/chatgpt-image-ad/` | Static Meta image-ad creatives via gpt-image-2 (typography / UI mimicry). Live-validated. |
 | `skills/nano-banana-image-ad/` | Static Meta image-ad creatives via Nano Banana 2 / Pro / Edit (photoreal / lifestyle). Live-validated. |
 | `skills/image-ad-clone-chatgpt/` | Reverse-engineer an existing ad image into a reusable gpt-image-2 template. |
 | `skills/image-ad-clone-nano-banana/` | Reverse-engineer an existing ad image into a reusable Nano Banana template. |
-| `shared/skills/image-ad-prompting/` | Shared brain: 37 validated templates, safety suffixes, entry format, ecosystem `OVERVIEW.md`. |
+| `shared/skills/image-ad-prompting/` | Shared brain for the image-ad ecosystem: 37 validated templates, safety suffixes, entry format, `OVERVIEW.md`. |
+| `shared/skills/pixar-style-ad/` | Cross-API recipe: 8-beat anthropomorphized mascot ad via GPT Image 2 storyboard + Seedance 2.0 i2v. |
+| `shared/skills/claymation-ad/` | Cross-API recipe: Aardman-style 8-beat clay narrative ad; same backbone as Pixar with stop-motion judder option. |
+| `shared/skills/caption-video/` | Out-of-band post step: HyperFrames + Whisper + ffmpeg chroma-key to burn captions onto any finished MP4. |
 | `shared/skills/meta-ad-builder/` | Publish finished creatives as paused Meta ads via the Meta Marketing API. |
-| `shared/scripts/check-context.sh` | SessionStart banner — shows installed skills + `.env` / `MASTER_CONTEXT.md` status + ecosystem pointers. |
-| `MASTER_CONTEXT.template.md` | Template for your workspace context (credit costs, brand voice, learnings) |
-| `MASTER_CONTEXT.md` | Your personalized copy (created by setup, not committed to git) |
-| `.env` | Your API key (created by setup, never committed) |
-| `scripts/setup.sh` | One-time setup |
-| `scripts/sync-skill.sh` | Copies skill edits to `.claude/` and `.cursor/` directories |
-| `scripts/check-arcads-env.sh` | Tests API connectivity |
-| `references/` | Drop reference images here (influencers, products, aesthetics) — gitignored |
+| `shared/scripts/check-context.sh` | SessionStart banner — lists installed skills, checks `.env` / `MASTER_CONTEXT.md` status, surfaces ecosystem pointers. Hooked into `.claude/settings.json`. |
+| `MASTER_CONTEXT.template.md` | Template for your workspace context (credit costs, brand voice, learnings). |
+| `MASTER_CONTEXT.md` | Your personalized copy (created by setup, not committed to git). |
+| `.env` | Your API key (created by setup, never committed). |
+| `scripts/setup.sh` | One-time setup. |
+| `scripts/sync-skill.sh` | Copies skill edits to `.claude/` and `.cursor/` directories. |
+| `scripts/check-arcads-env.sh` | Tests API connectivity. |
+| `references/` | Drop reference images here (influencers, products, aesthetics) — gitignored. |
+| `logs/arcads-api.jsonl` | Per-call audit log: model, duration, resolution, reference counts, `creditsCharged`. Powers cost-estimation accuracy across sessions. |
 
 ## Your API key
 
@@ -116,59 +259,75 @@ Need an Arcads account first? Create one here: **[https://arcads.ai/?via=caleb](
 
 Find your key: **[Arcads Dashboard > Settings > API](https://app.arcads.ai/settings/api)**
 
+For Meta-ad publishing (the `meta-ad-builder` skill), you'll also need `META_ACCESS_TOKEN` and `META_AD_ACCOUNT_ID` in `.env` — the `.env.example` has placeholder rows.
+
 ## Project memory
 
 `MASTER_CONTEXT.md` is your workspace's living memory. The agent reads it at the start of every session and writes learnings back. It stores:
 
 - **Default product** — auto-populated on first use so you're never asked "which product?" again
+- **Default project / folder** — session output organized in the Arcads dashboard automatically
 - **Credit costs** — you fill in once (or the agent asks), then every session has them
+- **Image hosting** — where you stage reference images if a workflow needs hosted URLs
 - **Brand voice** — optional tone, audience, and word preferences
 - **API learnings** — universal Arcads quirks that help the agent work better
 - **Changelog** — dated notes from each session
 
 ## Supported models
 
-| Model | Type | Best for | Credits |
-|-------|------|----------|---------|
-| **Veo 3.1** | Video | Animating a starting frame into ~8s video with dialogue. Best for UGC stills → video. | 1 |
-| **Sora 2** | Video | Longer videos (up to 20s) from text prompts. Product photo as style ref (no starting frame). | varies |
-| **Kling 3.0** | Video | B-roll and scene generation (via scene/b-roll endpoints) | varies |
-| **Nano Banana 2** | Image | UGC stills, character sheets, product shots, influencer recreation | 0.03 |
+| Model | Type | Best for | Notes |
+|-------|------|----------|-------|
+| **Seedance 2.0** | Video (4–15s) | Flagship video model. UGC, premium reveal, product hero, lookbook, feature walkthrough. Native audio. | `model: "seedance-2.0"`. 5 prompt formulas ship. Mutually exclusive: `referenceVideos` vs `referenceImages`. |
+| **Sora 2** | Video (up to 20s) | Long-duration text-to-video, image-to-video with product photo as style ref. | `model: "sora2"`. Duration enum: `[4, 8, 12, 16, 20]`. Remix: `POST /v1/sora2/remix/video`. |
+| **Veo 3.1** | Video (~8s) | Animating a starting frame (UGC stills → video). Best for character / influencer flows. | `model: "veo31"`. `startFrame` and `referenceImages` are mutually exclusive — default `startFrame` for single person photos. |
+| **Kling 3.0** | Video (5s or 10s) | B-roll and scene generation. | Hits `POST /v1/b-roll` / `POST /v1/scene` directly. |
+| **Grok Video** | Video | Text-to-video via xAI's video model. | `model: "grok-video"`. |
+| **Nano Banana 2** | Image | Default still-image model. UGC stills, character sheets, product shots, influencer recreation, image-ad creatives. | `model: "nano-banana-2"`. |
+| **Nano Banana Pro** | Image | Premium image quality (Gemini 3 Pro Image). Locks character identity tighter across batches. | `model: "nano-banana"` (the bare string maps to Pro on Arcads). |
+| **Nano Banana Edit** | Image | Inpaint / edit an existing image. | `model: "nano-banana-edit"`. |
+| **ChatGPT Image 2** | Image | Typography-heavy / UI-mimicry static ad creatives. Used by `chatgpt-image-ad` skill + the Pixar / Claymation storyboard pipelines. | `model: "gpt-image-2"`. Max 5 `referenceImages`. Aspect ratios: `1:1`, `16:9`, `9:16`. |
+| **OmniHuman** | Video | Talking-avatar / lip-sync workflows. | `POST /v1/omnihuman`. |
+| **Audio-driven** | Video | Lip-sync a video to a supplied audio file. | `POST /v1/audio-driven`. |
+
+Cost is presented as an **estimate** before every generation; the agent reads `logs/arcads-api.jsonl` for historical `creditsCharged` values matching your config. Always confirm exact pricing in the Arcads dashboard if it matters for budgeting.
 
 ## Reference images
 
 Drop images into the `references/` folder and the agent will use them automatically:
 
-- **`references/influencers/`** — Photos of people to recreate as AI-generated content
+- **`references/influencers/`** — Photos of people to recreate as AI-generated content (and saved character sheets)
 - **`references/products/`** — Product photos for showcase videos and hero images
 - **`references/aesthetics/`** — Style references organized by vibe (`ugc-selfie/`, `cinematic/`, etc.)
 
-Images stay local — the folder contents are gitignored.
+Images stay local — the folder contents are gitignored. The agent auto-upscales any reference below 1024px (the API's min-size floor) using Lanczos before submitting.
 
-## Editing the skill
+## Editing skills
 
-The canonical skill source lives in `skills/arcads-external-api/`. After editing any file there, run:
+Each skill's canonical source lives in `skills/<name>/`. After editing any file there, run:
 
 ```bash
 ./scripts/sync-skill.sh
 ```
 
-This copies your changes to `.claude/skills/` and `.cursor/skills/` (which are gitignored — they're generated copies).
+This copies your changes to `.claude/skills/` and `.cursor/skills/` (which are gitignored — they're generated copies). The `SessionStart` hook in `.claude/settings.json` also runs this automatically when Claude Code opens.
 
 ## Security
 
 - `.env` is gitignored — never committed
 - `MASTER_CONTEXT.md` is gitignored — contains your product IDs and workspace data
 - Never paste API keys in GitHub issues or public chats
+- Every Meta ad created via `meta-ad-builder` is created **PAUSED** — nothing goes live without you launching it manually in Ads Manager
 
 ## Vendor prompting guides
 
 | Model | Guide |
 |-------|--------|
+| Seedance 2.0 | Aligned to ByteDance's published Seedance prompting platform (the skill summarizes this in `prompting/prompt-library/seedance-2.md`) |
 | Sora 2 | [OpenAI — Sora 2 prompting guide](https://developers.openai.com/cookbook/examples/sora/sora2_prompting_guide) |
 | Veo 3.1 | [Google Cloud — Veo 3.1](https://cloud.google.com/blog/products/ai-machine-learning/ultimate-prompting-guide-for-veo-3-1) |
 | Kling 3.0 | [Kling — user guide](https://kling.ai/quickstart/klingai-video-3-model-user-guide) |
 | Nano Banana | [Google Cloud — Nano Banana](https://cloud.google.com/blog/products/ai-machine-learning/ultimate-prompting-guide-for-nano-banana) |
+| ChatGPT Image 2 | OpenAI image-generation guidance (summarized in `shared/skills/chatgpt-image-ad/prompting/guide.md` with model-specific strengths and limits) |
 
 ## API docs
 
@@ -176,4 +335,4 @@ This copies your changes to `.claude/skills/` and `.cursor/skills/` (which are g
 
 ## Other AI assistants (Manus, Copilot, etc.)
 
-Point your assistant at [AGENTS.md](AGENTS.md) and `MASTER_CONTEXT.md` + the skill path. See [AGENTS.md](AGENTS.md) for details.
+Point your assistant at [AGENTS.md](AGENTS.md) and `MASTER_CONTEXT.md` + the skill paths in `skills/` and `shared/skills/`. See [AGENTS.md](AGENTS.md) for details.
