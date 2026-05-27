@@ -44,7 +44,7 @@ fi
 
 if [[ "$needs_key" == "1" ]]; then
   echo ""
-  echo "Need an Arcads account first? Sign up here: https://arcads.ai/?via=caleb"
+  echo "Need an Arcads account first? Sign up here: https://arcads.ai/?via=claude-code"
   echo "Then go to https://app.arcads.ai/settings/api and copy EITHER:"
   echo "  • the Basic auth header (e.g. 'Basic ODQxMTg4NDExZDY1NDQ0MmJk...'), OR"
   echo "  • the raw API key (we'll build the header for you)"

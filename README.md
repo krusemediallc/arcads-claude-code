@@ -1,6 +1,6 @@
 # Arcads AI Video — Agent Skill Pack
 
-Create AI marketing videos and images using your [Arcads](https://arcads.ai/?via=caleb) account, powered by AI agents in **Claude Code** or **Cursor**. Supports the full Arcads creative stack — **Seedance 2.0** (flagship video), **Sora 2**, **Veo 3.1**, **Kling 3.0**, **Grok Video**, **Nano Banana 2 / Pro / Edit**, **ChatGPT Image 2**, **OmniHuman**, and **Audio-driven** — plus a 37-template static Meta image-ad library and a pipeline for **Pixar-style** and **claymation** animated ads.
+Create AI marketing videos and images using your [Arcads](https://arcads.ai/?via=claude-code) account, powered by AI agents in **Claude Code** or **Cursor**. Supports the full Arcads creative stack — **Seedance 2.0** (flagship video), **Sora 2**, **Veo 3.1**, **Kling 3.0**, **Grok Video**, **Nano Banana 2 / Pro / Edit**, **ChatGPT Image 2**, **OmniHuman**, and **Audio-driven** — plus a 37-template static Meta image-ad library and a pipeline for **Pixar-style** and **claymation** animated ads.
 
 ## Level up your media buying with AI
 
@@ -53,7 +53,7 @@ cd arcads-claude-code
 ```
 
 This will:
-- Sign up if you need an Arcads account: [arcads.ai/?via=caleb](https://arcads.ai/?via=caleb)
+- Sign up if you need an Arcads account: [arcads.ai/?via=claude-code](https://arcads.ai/?via=claude-code)
 - Ask for your **Arcads API key** (find it at [app.arcads.ai/settings/api](https://app.arcads.ai/settings/api))
 - Save it securely in `.env` (never committed to git)
 - Verify your connection to Arcads
@@ -271,7 +271,7 @@ The cross-API `meta-ad-builder` skill (in `shared/skills/`) takes a finished cre
 
 Your key authenticates with the Arcads API. During setup you paste it once and the agent uses it from `.env` automatically. You never need to paste it into chat.
 
-Need an Arcads account first? Create one here: **[https://arcads.ai/?via=caleb](https://arcads.ai/?via=caleb)**
+Need an Arcads account first? Create one here: **[https://arcads.ai/?via=claude-code](https://arcads.ai/?via=claude-code)**
 
 Find your key: **[Arcads Dashboard > Settings > API](https://app.arcads.ai/settings/api)**
 
