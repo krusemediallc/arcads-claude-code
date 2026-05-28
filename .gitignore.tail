@@ -3,3 +3,6 @@ scripts/generate-thumbnails.sh
 scripts/generate-thumbnails-*.sh
 scripts/generate-ab-variants*.sh
 scripts/regen-*.sh
+
+# Legacy pre-shared/ path; canonical script now lives at shared/scripts/sync-skill.sh
+scripts/sync-skill.sh
