@@ -2,6 +2,12 @@
 
 Create AI marketing videos and images using your [Arcads](https://arcads.ai/?via=claude-code) account, powered by AI agents in **Claude Code** or **Cursor**. Supports the full Arcads creative stack — **Seedance 2.0** (flagship video), **Sora 2**, **Veo 3.1**, **Kling 3.0**, **Grok Video**, **Nano Banana 2 / Pro / Edit**, **ChatGPT Image 2**, **OmniHuman**, and **Audio-driven** — plus a 37-template static Meta image-ad library and a pipeline for **Pixar-style** and **claymation** animated ads.
 
+## 🎥 Watch the walkthrough
+
+[![How To Build Entire AI Ad Campaigns With Claude Code (free repo)](https://i.ytimg.com/vi/HHGQN9Zqaxo/hqdefault.jpg)](https://youtu.be/HHGQN9Zqaxo)
+
+**[How To Build Entire AI Ad Campaigns With Claude Code (free repo)](https://youtu.be/HHGQN9Zqaxo)** — full build tutorial by Mr. Paid Social.
+
 ## Level up your media buying with AI
 
 This repo handles the **creative** side. If you want the full system — scaling, ROAS, automation, and the AI workflows behind 8-figure ad accounts — come build with me inside **[The AI Ad Alchemists](https://skool.com/mrpaidsocial)**.
