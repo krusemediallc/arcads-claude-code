@@ -357,7 +357,7 @@ This repo updates regularly — new templates land in the prompt library, new wo
 | Sora 2 | [OpenAI — Sora 2 prompting guide](https://developers.openai.com/cookbook/examples/sora/sora2_prompting_guide) |
 | Veo 3.1 | [Google Cloud — Veo 3.1](https://cloud.google.com/blog/products/ai-machine-learning/ultimate-prompting-guide-for-veo-3-1) |
 | Kling 3.0 | [Kling — user guide](https://kling.ai/quickstart/klingai-video-3-model-user-guide) |
-| Nano Banana | [Google Cloud — Nano Banana](https://cloud.google.com/blog/products/ai-machine-learning/ultimate-prompting-guide-for-nano-banana) |
+| Nano Banana | [Arcads API docs — Nano Banana](https://external-api.arcads.ai/docs) |
 | ChatGPT Image 2 | OpenAI image-generation guidance (summarized in `shared/skills/chatgpt-image-ad/prompting/guide.md` with model-specific strengths and limits) |
 
 ## API docs
