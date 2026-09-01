@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Generate one or more standalone Meta ad creatives via Arcads' POST /v2/images/generate
-with the Nano Banana model family (nano-banana-2 default, nano-banana-pro / nano-banana
-legacy / nano-banana-edit opt-in).
+Generate one or more standalone Meta ad creatives with the Nano Banana model family
+through Arcads (default) or Atlas Cloud (opt-in). Supported variants are
+nano-banana-2 (default), nano-banana-pro, nano-banana, and nano-banana-edit.
 
 Brand contract: this script refuses any model outside the Nano Banana family. The
 sibling `chatgpt-image-ad/scripts/generate_image.py` handles ChatGPT Image 2.
@@ -31,12 +31,15 @@ import subprocess
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 
 BASE_URL_DEFAULT = "https://external-api.arcads.ai"
+ATLAS_BASE_URL_DEFAULT = "https://api.atlascloud.ai/api/v1"
+ALLOWED_PROVIDERS = {"arcads", "atlas"}
 ALLOWED_RATIOS = {"1:1", "16:9", "9:16"}  # Arcads /v2/images/generate cap (applies to all models on this endpoint)
 ALLOWED_MODES = {"image", "image_edit"}
 ALLOWED_MODELS = {"nano-banana-2", "nano-banana-pro", "nano-banana", "nano-banana-edit"}
@@ -45,6 +48,12 @@ POLL_INTERVAL_S = 3
 POLL_TIMEOUT_S = 240
 MIN_DIMENSION = 1024
 MAX_REFS = 14  # Arcads cap for Nano Banana family
+ATLAS_MODEL_PREFIXES = {
+    "nano-banana-2": "google/nano-banana-2",
+    "nano-banana-pro": "google/nano-banana-pro",
+    "nano-banana": "google/nano-banana",
+    "nano-banana-edit": "google/nano-banana",
+}
 
 NO_CHROME_SUFFIX = (
     "\n\n[NO PLATFORM CHROME] Render only the standalone ad creative (the static image uploaded to Meta), "
@@ -113,6 +122,13 @@ def auth_header(env: dict) -> str:
     return f"Basic {encoded}"
 
 
+def atlas_auth_header(env: dict) -> str:
+    key = env.get("ATLASCLOUD_API_KEY") or os.environ.get("ATLASCLOUD_API_KEY")
+    if not key:
+        raise SystemExit("error: ATLASCLOUD_API_KEY is not set in .env or the shell environment")
+    return f"Bearer {key}"
+
+
 def slugify(text: str, max_len: int = 40) -> str:
     s = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
     return s[:max_len] or "image"
@@ -153,6 +169,155 @@ def http_download(url: str, dest: Path, timeout: int = 120) -> None:
     with urllib.request.urlopen(req, timeout=timeout) as resp, dest.open("wb") as out:
         while chunk := resp.read(64 * 1024):
             out.write(chunk)
+
+
+def atlas_upload(local_path: Path, base_url: str, auth_hdr: str) -> str:
+    """Upload one local reference to Atlas Cloud and return its temporary URL."""
+    if not local_path.exists():
+        raise SystemExit(f"error: image not found: {local_path}")
+    mime = MEDIA_TYPES.get(local_path.suffix.lower())
+    if not mime:
+        raise SystemExit(
+            f"error: unsupported image extension '{local_path.suffix}' for {local_path}. "
+            f"Supported: {sorted(MEDIA_TYPES)}"
+        )
+
+    boundary = f"----arcads-skill-{int(time.time() * 1000)}-{os.getpid()}"
+    filename = local_path.name.replace('"', "_").replace("\r", "_").replace("\n", "_")
+    body = (
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="file"; filename="{filename}"\r\n'
+        f"Content-Type: {mime}\r\n\r\n"
+    ).encode("utf-8") + local_path.read_bytes() + f"\r\n--{boundary}--\r\n".encode("utf-8")
+    req = urllib.request.Request(
+        f"{base_url}/model/uploadMedia",
+        data=body,
+        method="POST",
+        headers={
+            "Authorization": auth_hdr,
+            "Content-Type": f"multipart/form-data; boundary={boundary}",
+            "User-Agent": "arcads-claude-code/atlas-provider",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"Atlas upload failed (HTTP {e.code}): {err_body}") from e
+
+    data = payload.get("data", payload)
+    url = data.get("download_url") if isinstance(data, dict) else None
+    if not url:
+        raise RuntimeError(f"Atlas upload response missing download_url: {payload}")
+    return url
+
+
+def atlas_model(model: str, has_images: bool) -> str:
+    prefix = ATLAS_MODEL_PREFIXES[model]
+    return f"{prefix}/{'edit' if has_images else 'text-to-image'}"
+
+
+def atlas_submit(
+    prompt: str,
+    model: str,
+    aspect_ratio: str | None,
+    image_urls: list[str],
+    base_url: str,
+    auth_hdr: str,
+    allow_chrome: bool = False,
+    no_safe_zone: bool = False,
+) -> str:
+    """Submit one paid Atlas generation request. This function never retries POST."""
+    final_prompt = prompt
+    if not allow_chrome:
+        final_prompt += NO_CHROME_SUFFIX
+    if not no_safe_zone:
+        final_prompt += SAFE_ZONE_SUFFIX
+    final_prompt += GLYPH_SAFETY_SUFFIX
+
+    body: dict = {
+        "model": atlas_model(model, bool(image_urls)),
+        "prompt": final_prompt,
+        "resolution": "1k",
+        "output_format": "png",
+    }
+    if aspect_ratio:
+        body["aspect_ratio"] = aspect_ratio
+    if image_urls:
+        body["images"] = image_urls
+
+    payload = http_post_json(
+        f"{base_url}/model/generateImage",
+        {
+            "Authorization": auth_hdr,
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent": "arcads-claude-code/atlas-provider",
+        },
+        body,
+        timeout=120,
+    )
+    if payload.get("code") not in (None, 0, 200):
+        raise RuntimeError(f"Atlas generation rejected: {payload}")
+    data = payload.get("data", payload)
+    prediction_id = data.get("id") if isinstance(data, dict) else None
+    if not prediction_id:
+        raise RuntimeError(f"Atlas generation returned no prediction id: {payload}")
+    return prediction_id
+
+
+def atlas_get_prediction(prediction_id: str, base_url: str, auth_hdr: str) -> dict:
+    """Get one Atlas prediction state with bounded transient GET retries."""
+    url = f"{base_url}/model/prediction/{urllib.parse.quote(prediction_id, safe='')}"
+    headers = {
+        "Authorization": auth_hdr,
+        "Accept": "application/json",
+        "User-Agent": "arcads-claude-code/atlas-provider",
+    }
+    for attempt in range(3):
+        req = urllib.request.Request(url, headers=headers, method="GET")
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                payload = json.loads(resp.read().decode("utf-8"))
+            if payload.get("code") not in (None, 0, 200):
+                raise RuntimeError(f"Atlas prediction rejected: {payload}")
+            data = payload.get("data", payload)
+            if not isinstance(data, dict):
+                raise RuntimeError(f"Atlas prediction response is malformed: {payload}")
+            return data
+        except urllib.error.HTTPError as e:
+            if e.code != 429 and e.code < 500:
+                err_body = e.read().decode("utf-8", errors="replace")
+                raise RuntimeError(f"Atlas prediction failed (HTTP {e.code}): {err_body}") from e
+            if attempt == 2:
+                raise RuntimeError(f"Atlas prediction GET failed after 3 attempts: HTTP {e.code}") from e
+        except urllib.error.URLError as e:
+            if attempt == 2:
+                raise RuntimeError(f"Atlas prediction GET failed after 3 attempts: {e}") from e
+        if attempt < 2:
+            time.sleep(2 ** attempt)
+    raise RuntimeError("Atlas prediction GET failed after bounded retries")
+
+
+def atlas_poll(prediction_id: str, base_url: str, auth_hdr: str) -> str:
+    deadline = time.monotonic() + POLL_TIMEOUT_S
+    last_status = None
+    while time.monotonic() < deadline:
+        prediction = atlas_get_prediction(prediction_id, base_url, auth_hdr)
+        status = str(prediction.get("status", "")).lower()
+        if status != last_status:
+            log(f"  [{prediction_id[:8]}] status={status}")
+            last_status = status
+        if status == "completed":
+            outputs = prediction.get("outputs") or []
+            if not outputs:
+                raise RuntimeError(f"Atlas prediction completed without outputs: {prediction}")
+            return outputs[0]
+        if status == "failed":
+            raise RuntimeError(f"Atlas generation failed: {prediction}")
+        time.sleep(POLL_INTERVAL_S)
+    raise TimeoutError(f"Atlas prediction {prediction_id} did not complete in {POLL_TIMEOUT_S}s")
 
 
 def probe_dimensions(path: Path) -> tuple[int, int]:
@@ -361,19 +526,30 @@ def generate_one(
     project_id: str | None,
     allow_chrome: bool,
     no_safe_zone: bool,
+    provider: str = "arcads",
 ) -> dict:
-    log(f"variant {variant}: uploading refs ({len(ref_locals)})…")
-    ref_filepaths = [upload_reference(p, base_url, auth_hdr) for p in ref_locals]
-    source_filepath = upload_reference(source_local, base_url, auth_hdr) if source_local else None
-
-    log(f"variant {variant}: submitting (model={model}, mode={mode})…")
-    asset_id = submit(
-        prompt, model, mode, aspect_ratio, source_filepath, ref_filepaths,
-        product_id, project_id, base_url, auth_hdr,
-        allow_chrome=allow_chrome, no_safe_zone=no_safe_zone,
-    )
+    log(f"variant {variant}: uploading refs ({len(ref_locals)}) via {provider}…")
+    if provider == "atlas":
+        image_urls = [atlas_upload(p, base_url, auth_hdr) for p in ref_locals]
+        if source_local:
+            image_urls.insert(0, atlas_upload(source_local, base_url, auth_hdr))
+        log(f"variant {variant}: submitting once (provider=atlas, model={model}, mode={mode})…")
+        asset_id = atlas_submit(
+            prompt, model, aspect_ratio, image_urls, base_url, auth_hdr,
+            allow_chrome=allow_chrome, no_safe_zone=no_safe_zone,
+        )
+        url = atlas_poll(asset_id, base_url, auth_hdr)
+    else:
+        ref_filepaths = [upload_reference(p, base_url, auth_hdr) for p in ref_locals]
+        source_filepath = upload_reference(source_local, base_url, auth_hdr) if source_local else None
+        log(f"variant {variant}: submitting (provider=arcads, model={model}, mode={mode})…")
+        asset_id = submit(
+            prompt, model, mode, aspect_ratio, source_filepath, ref_filepaths,
+            product_id, project_id, base_url, auth_hdr,
+            allow_chrome=allow_chrome, no_safe_zone=no_safe_zone,
+        )
+        url = poll(asset_id, base_url, auth_hdr)
     log(f"variant {variant}: id={asset_id}")
-    url = poll(asset_id, base_url, auth_hdr)
     dest = out_dir / f"{ts}-{slug}-v{variant}.png"
     log(f"variant {variant}: downloading -> {dest.name}")
     http_download(url, dest)
@@ -393,12 +569,13 @@ def generate_one(
         "mode": mode,
         "aspect_ratio": aspect_ratio,
         "model": model,
+        "provider": provider,
     }
 
 
 def main() -> int:
     p = argparse.ArgumentParser(
-        description="Generate Nano Banana image(s) via Arcads. Defaults to nano-banana-2.",
+        description="Generate Nano Banana image(s) via Arcads or Atlas Cloud. Defaults to Arcads.",
     )
     p.add_argument("--prompt", required=True, help="Image prompt (post-rewrite).")
     p.add_argument(
@@ -437,11 +614,15 @@ def main() -> int:
         "--env-file", type=Path, default=Path(".env"),
         help="Path to .env (default: ./.env).",
     )
+    p.add_argument(
+        "--provider", default="arcads", choices=sorted(ALLOWED_PROVIDERS),
+        help="Generation provider. Default: arcads; atlas is opt-in.",
+    )
     p.add_argument("--product-id", help="Arcads productId (defaults to PRODUCT_ID env / .env).")
     p.add_argument("--project-id", help="Arcads projectId (defaults to PROJECT_ID env / .env).")
     p.add_argument(
         "--base-url", default=None,
-        help=f"Arcads API base URL (default: {BASE_URL_DEFAULT} or ARCADS_BASE_URL).",
+        help="Provider API base URL override.",
     )
     p.add_argument("--allow-chrome", action="store_true",
                    help="Allow platform/screenshot UI in the output.")
@@ -461,6 +642,14 @@ def main() -> int:
         log(f"error: too many --image-ref ({len(args.image_ref)}); Nano Banana cap is {MAX_REFS}")
         return 2
 
+    atlas_image_count = len(args.image_ref) + (1 if args.source else 0)
+    if args.provider == "atlas" and atlas_image_count > MAX_REFS:
+        log(
+            f"error: Atlas Cloud accepts at most {MAX_REFS} total source/reference images "
+            f"(got {atlas_image_count})"
+        )
+        return 2
+
     if args.mode == "image":
         if args.source is not None:
             log("error: --source is not allowed with --mode image. "
@@ -478,17 +667,31 @@ def main() -> int:
             log("warn: --aspect-ratio is ignored for --mode image_edit "
                 "(output dimensions track the source).")
 
-    env = load_env(args.env_file)
-    auth_hdr = auth_header(env)
-    base_url = (
-        args.base_url
-        or env.get("ARCADS_BASE_URL")
-        or os.environ.get("ARCADS_BASE_URL")
-        or BASE_URL_DEFAULT
-    )
+    env = load_env(args.env_file) if args.env_file.exists() else {}
+    if args.provider == "atlas":
+        auth_hdr = atlas_auth_header(env)
+        base_url = (
+            args.base_url
+            or env.get("ATLASCLOUD_BASE_URL")
+            or os.environ.get("ATLASCLOUD_BASE_URL")
+            or ATLAS_BASE_URL_DEFAULT
+        )
+    else:
+        if not args.env_file.exists() and not (
+            os.environ.get("ARCADS_BASIC_AUTH") or os.environ.get("ARCADS_API_KEY")
+        ):
+            log(f"error: .env not found at {args.env_file}")
+            return 2
+        auth_hdr = auth_header(env)
+        base_url = (
+            args.base_url
+            or env.get("ARCADS_BASE_URL")
+            or os.environ.get("ARCADS_BASE_URL")
+            or BASE_URL_DEFAULT
+        )
     product_id = args.product_id or env.get("PRODUCT_ID") or os.environ.get("PRODUCT_ID")
     project_id = args.project_id or env.get("PROJECT_ID") or os.environ.get("PROJECT_ID")
-    if not product_id:
+    if args.provider == "arcads" and not product_id:
         product_id = fetch_default_product(base_url, auth_hdr)
         if not product_id:
             log("error: PRODUCT_ID not set in .env and Arcads has no products yet. "
@@ -502,7 +705,7 @@ def main() -> int:
     aspect = args.aspect_ratio if args.mode == "image" else None
     chrome_state = "allowed" if args.allow_chrome else "stripped"
     log(
-        f"generating {args.n} variant(s) model={args.model} mode={args.mode} "
+        f"generating {args.n} variant(s) provider={args.provider} model={args.model} mode={args.mode} "
         f"{'aspect=' + aspect if aspect else 'aspect=from-source'} "
         f"chrome={chrome_state} refs={len(args.image_ref)} -> {args.out}/"
     )
@@ -516,6 +719,7 @@ def main() -> int:
                 args.source, list(args.image_ref), args.out, slug, ts,
                 base_url, auth_hdr, product_id, project_id,
                 args.allow_chrome, args.no_safe_zone,
+                args.provider,
             ): i
             for i in range(1, args.n + 1)
         }
