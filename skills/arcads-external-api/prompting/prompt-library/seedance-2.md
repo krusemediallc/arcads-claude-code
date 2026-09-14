@@ -22,6 +22,19 @@
 
 **Not supported:** `startFrame`, `endFrame`, `nbGenerations`.
 
+## Seedance 2.5 — what changes
+
+`"model": "seedance-2.5"` on the same endpoint (asset type `seedance_25`, poll `GET /v1/assets/{id}`). Everything in this guide still applies; the limits move:
+
+| | Seedance 2.0 | Seedance 2.5 |
+|---|---|---|
+| `duration` | 4–15 s | **4–30 s** |
+| `resolution` | 480p / 720p / 1080p / 4K | 480p / 720p / **1080p max** |
+| `referenceImages` | 9 | **30** |
+| `referenceVideos` / `referenceAudios` | 3 / 3 | **10 / 10** |
+
+Prompt length: keep the 100–260 word rule for 15s. For 20–30s clips add timestamp blocks rather than adjectives — one action per block. Fast-paced ads: 7–8 timestamped shots in 15s, hard cuts named explicitly ("Hard cut", "Whip pan to"), degree adverbs on every motion. Worked example: `campaigns/hyperfocus-sparkling-focus-water/prompt-seedance-2.5-15s.txt`.
+
 ### `@(img1)` reference image mapping
 
 The Seedance 2.0 prompting templates use `@(img1)` / `@(img2)` / `@(img3)` tokens inline in the prompt text to reference product images. In the API:

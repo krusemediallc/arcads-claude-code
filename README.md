@@ -111,6 +111,21 @@ Polished editorial / lookbook style, multi-shot, with embedded dialogue. See `sk
 
 Fast-paced product-demo cuts. See `skills/arcads-external-api/prompting/prompt-library/seedance-2-feature-walkthrough.md`.
 
+#### Seedance 2.5 — fast-paced multi-shot ad, one command
+
+> "Fast-paced cinematic Seedance 2.5 ad for [product] — 15s, 9:16, product hero, no dialogue"
+
+`model: "seedance-2.5"` on the same endpoint: 4–30s clips, up to 1080p, up to 30 reference images, native audio. `scripts/generate-seedance-video.py` runs the whole skill flow in one command (dated folder/project, presigned upload, log line, polling, download) and prints the credit balance before/after so the real price of a new config lands in the log:
+
+```bash
+python3 scripts/generate-seedance-video.py \
+  --prompt-file campaigns/hyperfocus-sparkling-focus-water/prompt-seedance-2.5-15s.txt \
+  --image references/products/hyperfocus-can.png \
+  --model seedance-2.5 --duration 15 --aspect 9:16 --resolution 720p --dry-run   # drop --dry-run, add --yes to render
+```
+
+Worked example (creative treatment, prompt, overlay burn-in): `campaigns/hyperfocus-sparkling-focus-water/`.
+
 ---
 
 ### 🎬 Other video models
@@ -270,6 +285,8 @@ The cross-API `meta-ad-builder` skill (in `shared/skills/`) takes a finished cre
 | `scripts/setup.sh` | One-time setup. |
 | `scripts/sync-skill.sh` | Copies skill edits to `.claude/` and `.cursor/` directories. |
 | `scripts/check-arcads-env.sh` | Tests API connectivity. |
+| `scripts/generate-seedance-video.py` | One-command Seedance 2.5 / 2.0 image-to-video: folder/project, presigned upload, credit estimate + balance check, log line, polling, download. |
+| `campaigns/` | Worked campaign packages (creative treatment + prompt files + post-processing). First one: `hyperfocus-sparkling-focus-water/`. |
 | `references/` | Drop reference images here (influencers, products, aesthetics) — gitignored. |
 | `logs/arcads-api.jsonl` | Per-call audit log: model, duration, resolution, reference counts, `creditsCharged`. Powers cost-estimation accuracy across sessions. |
 
@@ -300,6 +317,7 @@ For Meta-ad publishing (the `meta-ad-builder` skill), you'll also need `META_ACC
 | Model | Type | Best for | Notes |
 |-------|------|----------|-------|
 | **Seedance 2.0** | Video (4–15s) | Flagship video model. UGC, premium reveal, product hero, lookbook, feature walkthrough. Native audio. | `model: "seedance-2.0"`. 5 prompt formulas ship. Mutually exclusive: `referenceVideos` vs `referenceImages`. |
+| **Seedance 2.5** | Video (4–30s) | Longer multi-shot ads, fast-paced product hero, same prompt formulas as 2.0. Native audio. | `model: "seedance-2.5"`. Up to 1080p (no 4K), 30 reference images. One-command runner: `scripts/generate-seedance-video.py`. |
 | **Sora 2** | Video (up to 20s) | Long-duration text-to-video, image-to-video with product photo as style ref. | `model: "sora2"`. Duration enum: `[4, 8, 12, 16, 20]`. Remix: `POST /v1/sora2/remix/video`. |
 | **Veo 3.1** | Video (~8s) | Animating a starting frame (UGC stills → video). Best for character / influencer flows. | `model: "veo31"`. `startFrame` and `referenceImages` are mutually exclusive — default `startFrame` for single person photos. |
 | **Kling 3.0** | Video (5s or 10s) | B-roll and scene generation. | Hits `POST /v1/b-roll` / `POST /v1/scene` directly. |

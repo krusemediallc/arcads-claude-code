@@ -1,7 +1,7 @@
 ---
 name: arcads-external-api
 description: >-
-  Creates and retrieves AI video and image-related assets via the Arcads external API (Seedance 2.0, Sora 2, Veo 3.1, Kling, Grok Video, Nano Banana, b-roll, scene, script/actor flows). Loads prompts from the bundled prompting guide and model library, respects HTTP Basic auth from ARCADS_API_KEY, and polls assets/videos until ready. Use when the user mentions Arcads, external-api.arcads.ai, Seedance, Sora2, Veo, Kling, Nano Banana, b-roll, UGC scripts, or generating marketing creative through Arcads.
+  Creates and retrieves AI video and image-related assets via the Arcads external API (Seedance 2.5, Seedance 2.0, Sora 2, Veo 3.1, Kling, Grok Video, Nano Banana, b-roll, scene, script/actor flows). Loads prompts from the bundled prompting guide and model library, respects HTTP Basic auth from ARCADS_API_KEY, and polls assets/videos until ready. Use when the user mentions Arcads, external-api.arcads.ai, Seedance, Sora2, Veo, Kling, Nano Banana, b-roll, UGC scripts, or generating marketing creative through Arcads.
 ---
 
 # Arcads external API
@@ -40,6 +40,7 @@ All video models use `POST /v2/videos/generate` with the appropriate `model` val
 | **Seedance 2.0 product hero** — elemental effects, no person, splash/mist | `POST /v2/videos/generate` with `model: "seedance-2.0"` | [seedance-2.md](prompting/prompt-library/seedance-2.md) + [seedance-2-product-hero.md](prompting/prompt-library/seedance-2-product-hero.md) |
 | **Seedance 2.0 studio lookbook** — polished, voiceover, multi-look | `POST /v2/videos/generate` with `model: "seedance-2.0"` | [seedance-2.md](prompting/prompt-library/seedance-2.md) + [seedance-2-studio-lookbook.md](prompting/prompt-library/seedance-2-studio-lookbook.md) |
 | **Seedance 2.0 feature walkthrough** — fast-paced feature demo | `POST /v2/videos/generate` with `model: "seedance-2.0"` | [seedance-2.md](prompting/prompt-library/seedance-2.md) + [seedance-2-feature-walkthrough.md](prompting/prompt-library/seedance-2-feature-walkthrough.md) |
+| **Seedance 2.5 fast-paced product ad** — multi-shot, 4–30s, up to 1080p, up to 30 reference images; same style templates as 2.0 | `POST /v2/videos/generate` with `model: "seedance-2.5"` — or one command: `python3 scripts/generate-seedance-video.py --prompt-file … --image … --model seedance-2.5` | [seedance-2.md](prompting/prompt-library/seedance-2.md) + the matching style file (e.g. [seedance-2-product-hero.md](prompting/prompt-library/seedance-2-product-hero.md)); worked example in `campaigns/hyperfocus-sparkling-focus-water/` |
 | **Reverse-engineer a video style** into a reusable Seedance 2.0 template | Follow the analyze-video skill | [prompting/analyze-video/SKILL.md](prompting/analyze-video/SKILL.md) |
 | **Clone/replicate an existing video ad** for a different product | Follow the clone-ad skill | [prompting/clone-ad/SKILL.md](prompting/clone-ad/SKILL.md) |
 | Raw **Sora 2** video from text (plus product) | `POST /v2/videos/generate` with `model: "sora2"` | [prompt-library/sora-2.md](prompting/prompt-library/sora-2.md) |
@@ -215,6 +216,10 @@ For no-dialogue styles (product hero, premium reveal), default to **15s**.
 
 **Aspect ratio:** `9:16` (vertical, default for UGC/social) or `16:9` (landscape). No `1:1` support.
 
+### Seedance 2.5 — duration: 4–30 seconds (continuous)
+
+Same rules as Seedance 2.0 (2.5 words/sec, round up), but the ceiling is **30s**, so scripts up to ~70 words fit in one clip. Resolution `480p` / `720p` / `1080p` (no 4K). Default to **15s** for no-dialogue ads; go longer only when the beat sheet needs it — every extra second is billed. Poll `GET /v1/assets/{id}` (type `seedance_25`). See `reference.md` → *Seedance 2.5* and `scripts/generate-seedance-video.py`.
+
 ### B-roll (Kling 3.0) — duration enum: `[5, 10]` seconds
 
 B-roll is typically wordless. If the user insists on a timed clip with context:
@@ -292,6 +297,7 @@ Details and checklist items: [prompting/prompt-library/nano-banana.md](prompting
 7. **Check `references/` folder:** Before composing the prompt, check the repo-root `references/` folder for relevant images: `references/influencers/` for person recreation, `references/products/` for product showcase, `references/aesthetics/` for style/mood. If the user hasn't provided an image but a relevant one exists in `references/`, offer to use it. Auto-upscale any reference image if needed. For Veo 3.1, determine whether to use `startFrame` or `referenceImages` (see section above — default to `startFrame` for person photos).
 8. Compose JSON per OpenAPI / [reference.md](reference.md). **Primary video endpoint:** `POST /v2/videos/generate` with the appropriate `model` value (see `CreateVideoDto` in reference.md). Include `projectId` when the DTO supports it. Set `duration` based on script length for models that require it. For Nano Banana images, use `POST /v2/images/generate` with `model` set per the Nano Banana section (`nano-banana-2` unless the user chose Pro).
    - **Seedance 2.0 extras:** Set `resolution` to `720p` (default). Set `aspectRatio` to `9:16` (UGC/social) or `16:9` (landscape). Include `audioEnabled` per user confirmation. If the user provided reference images, upload via presigned URL and pass `filePath` strings in `referenceImages` (max 3). Same for `referenceVideos` and `referenceAudios` if provided. Keep `@(img1)` tokens in the prompt text alongside the `referenceImages` array.
+   - **Seedance 2.5:** identical payload with `model: "seedance-2.5"`; `duration` 4–30, `resolution` up to `1080p`, `referenceImages` up to 30. `scripts/generate-seedance-video.py` does steps 1, 2, 8–10, 12 and 13 in one command (dated folder/project, presigned upload, log line, polling, download, add-to-project). Treat the 2.0 quirks below as applying to 2.5 until proven otherwise.
    - **⚠️ Seedance 2.0 mutually exclusive input modes (confirmed 2026-04-09):** `referenceVideos` and `referenceImages` **cannot be combined in the same request** — the API returns `HTTP 500 UNKNOWN_ERROR`. Pick one: image-to-video OR video-to-video. `referenceAudios` may be combined with either. See `reference.md` for details.
    - **~~Seedance 2.0 v2v + human faces~~ — RESOLVED 2026-04-14:** v2v with people/faces in reference videos now works. Previously blocked by content checker (April 9). See `reference.md`.
    - **~~Seedance 2.0 audio+image 500 regression~~ — RESOLVED 2026-04-14:** `audioEnabled: true` + `referenceImages` now works. Previously returned HTTP 500 (April 9). Always use freshly obtained presigned URLs. See `reference.md`.

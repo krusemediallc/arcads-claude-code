@@ -1,0 +1,9 @@
+{
+  "_comment": "Text overlays for the no-text prompt variant. Times in seconds; y_pct is the vertical anchor (fraction of frame height, measured from the top); size_pct is font size as a fraction of frame width. Keep everything in the upper third so Reels/Stories UI never covers it.",
+  "overlays": [
+    { "id": "hook",     "text": "3 SECONDS TO STOP\nTHE SCROLL.",  "start": 0.4,  "end": 2.0,  "y_pct": 0.24, "size_pct": 0.072 },
+    { "id": "claim",    "text": "HOLDS ATTENTION\nLONGER.",        "start": 7.2,  "end": 9.8,  "y_pct": 0.24, "size_pct": 0.072 },
+    { "id": "endcard1", "text": "HYPERFOCUS",                      "start": 12.2, "end": 15.0, "y_pct": 0.20, "size_pct": 0.11  },
+    { "id": "endcard2", "text": "SPARKLING FOCUS WATER",           "start": 12.5, "end": 15.0, "y_pct": 0.275, "size_pct": 0.042 }
+  ]
+}

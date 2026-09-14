@@ -40,6 +40,8 @@ All video models are available through a single endpoint. Use this as the **prim
 | **Kling 3.0** | `kling-3.0` | `POST /v2/videos/generate` | `CreateVideoDto` |
 | **Grok Video** | `grok-video` | `POST /v2/videos/generate` | `CreateVideoDto` |
 | **Seedance 2.0** | `seedance-2.0` | `POST /v2/videos/generate` | `CreateVideoDto` |
+| **Seedance 2.5** | `seedance-2.5` | `POST /v2/videos/generate` | `CreateVideoDto` — 4–30s, up to 1080p, 30 reference images (see [Seedance 2.5](#seedance-25-seedance-25--spec-facts-live-openapi-2026-09-14)) |
+| **Seedance 2.0 Mini** | `seedance-2.0-mini` | `POST /v2/videos/generate` | `CreateVideoDto` — lighter/cheaper Seedance 2.0 (untested here) |
 
 ### Other endpoints (not on the v2 unified route)
 
@@ -79,6 +81,7 @@ These still work and are kept for backward compatibility. Prefer the v2 unified 
 |------------------------|---------------|--------------|
 | `sora2`, `sora2-pro`, `veo31`, `kling-2.6`, `kling-3.0`, `grok-video` | `GET /v1/videos/{id}` | `videoStatus` |
 | **`seedance_20`** | **`GET /v1/assets/{id}`** | `status` |
+| **`seedance_25`** (Seedance 2.5), `seedance_20_mini` | **`GET /v1/assets/{id}`** | `status` |
 | `nano-banana`, `nano-banana-2`, `gpt-image`, `gpt-image-2`, `soul`, `grok_image`, `seedream`, `seedream_5_lite` | `GET /v1/assets/{id}` | `status` |
 | b-roll, scene | `GET /v1/assets/{id}` | `status` |
 
@@ -111,7 +114,7 @@ These still work and are kept for backward compatibility. Prefer the v2 unified 
 
 **Fields:**
 
-- `model` (required) — enum: `sora2`, `sora2-pro`, `veo31`, `kling-2.6`, `kling-3.0`, `grok-video`, `seedance-2.0`
+- `model` (required) — enum (live spec 2026-09-14): `sora2`, `sora2-pro`, `veo31`, `kling-2.6`, `kling-3.0`, `grok-video`, `seedance`, `seedance-2.0`, `seedance-2.0-mini`, `seedance-2.5`, `happy-horse`
 - `productId` (required) — UUID of the Arcads product
 - `prompt` (required) — the video prompt
 - `aspectRatio` (optional) — varies by model (see compatibility table below)
@@ -125,6 +128,27 @@ These still work and are kept for backward compatibility. Prefer the v2 unified 
 - `endFrame` (optional) — presigned `filePath`; supported by veo31, kling-2.6, kling-3.0
 - `projectId` (optional) — assign to session project
 - `nbGenerations` (optional) — sora2 / sora2-pro only (1–10)
+
+### Seedance 2.5 (`seedance-2.5`) — spec facts (live OpenAPI, 2026-09-14)
+
+Same `POST /v2/videos/generate` route and `CreateVideoDto` body as Seedance 2.0. Differences, straight from `GET /docs-json`:
+
+| Field | seedance-2.5 |
+|-------|--------------|
+| `duration` | **4–30 s** (continuous) — twice Seedance 2.0's ceiling |
+| `resolution` | `480p`, `720p`, `1080p` (**no 4K** — use `seedance-2.0` for 4K) |
+| `aspectRatio` | `9:16` or `16:9` only |
+| `referenceImages` | max **30** |
+| `referenceVideos` | max **10** |
+| `referenceAudios` | max **10** |
+| `audioEnabled` | yes |
+| `startFrame` / `endFrame` | not supported (same as 2.0) |
+| Asset `type` on the create response | `seedance_25` → poll **`GET /v1/assets/{id}`** (not `/v1/videos`) |
+
+- **Prompting:** the Seedance 2.0 platform rules and style templates apply unchanged (`prompting/prompt-library/seedance-2.md`). Timestamps matter even more on longer clips.
+- **Pricing:** no logged runs yet — treat the Seedance 2.0 i2v rate (~48 credits/sec @720p) as the floor and read `data.creditsCharged` / `GET /v1/credits` after the first run. `scripts/generate-seedance-video.py` prints the balance before and after and writes the actual charge into `logs/arcads-api.jsonl`.
+- **One-command runner:** `python3 scripts/generate-seedance-video.py --prompt-file <prompt.txt> --image <product.png> --model seedance-2.5 --duration 15 --aspect 9:16 --resolution 720p --dry-run` (drop `--dry-run`, add `--yes` to generate). Worked example: `campaigns/hyperfocus-sparkling-focus-water/`.
+- Whether the 2.0 quirks below (no `referenceImages` + `referenceVideos` mix, single `referenceVideos` entry) also apply to 2.5 is **unverified** — assume they do until a run proves otherwise.
 
 **Seedance 2.0 — mutually exclusive reference input modes (confirmed 2026-04-09):**
 
@@ -228,18 +252,18 @@ Workaround: if you want to blend multiple visual aesthetics, chain v2v calls —
 
 **Per-model field compatibility:**
 
-| Field | sora2 / sora2-pro | veo31 | kling-2.6 | kling-3.0 | grok-video | seedance-2.0 |
-|-------|:-:|:-:|:-:|:-:|:-:|:-:|
-| `aspectRatio` | 1:1, 16:9, 9:16 | 1:1, 16:9, 9:16 | — | — | auto, 1:1, 16:9, 9:16 | **9:16, 16:9 only** |
-| `duration` | 4,8,12,16,20 | — (auto ~8s) | 5,10 | 3–15 | 1–15 | **4–15** |
-| `resolution` | 720p, 1080p | 720p, 1080p, 4K | — | — | 480p, 720p | **480p, 720p** |
-| `referenceImages` | max 1 | max 3 | — | — | — | **max 3** |
-| `referenceVideos` | — | — | — | — | — | **max 3** |
-| `referenceAudios` | — | — | — | — | — | **max 3** |
-| `audioEnabled` | — | — | — | — | — | **yes** |
-| `startFrame` | — | yes | yes | yes | yes | — |
-| `endFrame` | — | yes | yes | yes | — | — |
-| `nbGenerations` | 1–10 | — | — | — | — | — |
+| Field | sora2 / sora2-pro | veo31 | kling-2.6 | kling-3.0 | grok-video | seedance-2.0 | seedance-2.5 |
+|-------|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| `aspectRatio` | 1:1, 16:9, 9:16 | 1:1, 16:9, 9:16 | — | — | auto, 1:1, 16:9, 9:16 | **9:16, 16:9 only** | **9:16, 16:9 only** |
+| `duration` | 4,8,12,16,20 | — (auto ~8s) | 5,10 | 3–15 | 1–15 | **4–15** | **4–30** |
+| `resolution` | 720p, 1080p | 720p, 1080p, 4K | — | — | 480p, 720p | **480p, 720p** | **480p, 720p, 1080p** |
+| `referenceImages` | max 1 | max 3 | — | — | — | **max 3** | **max 30** |
+| `referenceVideos` | — | — | — | — | — | **max 3** | **max 10** |
+| `referenceAudios` | — | — | — | — | — | **max 3** | **max 10** |
+| `audioEnabled` | — | — | — | — | — | **yes** | **yes** |
+| `startFrame` | — | yes | yes | yes | yes | — | — |
+| `endFrame` | — | yes | yes | yes | — | — | — |
+| `nbGenerations` | 1–10 | — | — | — | — | — | — |
 
 **Response (201):** Returns an asset object. Poll via `GET /v1/assets/{id}`.
 
@@ -368,6 +392,7 @@ Prefer `CreateVideoDto` with `model: "veo31"` via `POST /v2/videos/generate`.
 | Kling 3.0 | `duration` | 3–15 | No |
 | Grok Video | `duration` | 1–15 | No |
 | **Seedance 2.0** | `duration` | **4–15** (continuous) | **Yes (in prompt)** |
+| **Seedance 2.5** | `duration` | **4–30** (continuous) | **Yes (in prompt)** |
 | B-roll | `duration` (required) | 5, 10 | No |
 | Scene | None (auto) | Varies | Yes (`script` field) |
 | Nano Banana (image) | N/A (still image) | N/A | No |
@@ -411,6 +436,10 @@ Several endpoints (e.g. `POST /v1/b-roll`, `POST /V2/images/generate`) reject im
 4. Re-encode as base64 or upload the resized file.
 
 This should happen transparently — never ask the user about it.
+
+## Credits balance — `GET /v1/credits`
+
+`CreditsBalanceDto`: `plan`, `creditsIncluded`, `creditsRemaining`, `mcpCreditsSpentThisPeriod`, `additionalCreditsUsed`, `currentPeriodStart`, `currentPeriodEnd` (live spec 2026-09-14). Read it before and after a run to measure the real charge of a new model/config, then record the rate in `MASTER_CONTEXT.md`. It reports the balance only — there is still no per-call price list, so keep presenting totals as **estimates**.
 
 ## Product showcase workflow
 
