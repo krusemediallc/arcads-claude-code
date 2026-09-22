@@ -1,0 +1,14 @@
+{
+  "1234567890123456": {
+    "visually_reviewed": false,
+    "asset_index": 0,
+    "name": "Example AI Community — fictional headline layout",
+    "format": "Headline",
+    "brand_category": "AI marketing education",
+    "tags": ["Education", "Bold typography", "Static image"],
+    "cta_text": "Learn more",
+    "cta_link": "https://www.skool.com/example-community",
+    "landing_title": "Example AI Community",
+    "ai_prompt": "SYNTHETIC EXAMPLE ONLY. Replace with a prompt written after inspecting this specific downloaded ad. Describe its aspect ratio, layout, margins, image placement, colors, typography, exact text hierarchy, and how to substitute the supplied product or brand image. Name the requested image generator in the prompt; this workflow does not call it."
+  }
+}

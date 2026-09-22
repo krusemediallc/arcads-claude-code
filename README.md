@@ -26,6 +26,10 @@ If you're using this repo to crank out creative, the community is where you lear
 
 **→ [Join The AI Ad Alchemists — $97/month](https://skool.com/mrpaidsocial)**
 
+## Competitor image ads in Airtable
+
+Use the [Meta Ad Library → Airtable workflow](scripts/meta-ad-library-import/README.md) to fetch active image-ad metadata through Meta’s API, extract authorized snapshots, review each creative, and import attachments, tags and recreation prompts with duplicate checks.
+
 ## Prerequisites
 
 The agent and the basic Arcads workflows (image generation, video generation, polling) work with just **Python 3.10+** and the API key from setup. Some multi-step pipelines need a few extra CLI tools:
