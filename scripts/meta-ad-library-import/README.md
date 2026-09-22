@@ -4,6 +4,26 @@ Collect active static-ad metadata through Meta's Ad Library API, download the or
 
 The commands are deliberately separate so you can inspect their outputs. `fetch` calls Meta's API. `extract` uses an automated headless Chrome session because the API exposes snapshot URLs, not downloadable competitor image files. `prepare` requires image-specific visual review; it does not invent prompts from ad copy. `import` is a dry run unless you pass `--write`.
 
+## Using this workflow with an AI agent
+
+Give your agent the destination Airtable URL, the credential file location, and up to ten advertiser definitions: a brand name, numeric Facebook Page ID, and optional community URL and `include_any` filters. Finding competitors and confirming which Pages advertise them is a research step before running this CLI. For communities advertised by a shared Page, use a separate brand entry and a distinctive filter for each community; verify the actual destination after extraction.
+
+You can use this handoff:
+
+> Follow this guide to collect active static image ads for [brands and Facebook Page IDs] and import them into [Airtable URL]. Use [credential file] for Meta and the connected Airtable MCP or configured Airtable PAT. Collect up to 100 ads per brand entry. I authorize automated headless rendering of the API-provided snapshots. Open and inspect every selected image, choose relevant existing tags and formats, and write a detailed, individual ChatGPT Image 2.5 recreation prompt. Populate all source-supported fields, skip duplicate ad IDs, and verify the uploaded attachments and written metadata before reporting completion.
+
+Carry out these stages in order:
+
+1. **Inspect the destination and sources.** Read the Airtable schema and existing Ad Library URLs. Confirm each brand-to-Page relationship, then create the advertiser definitions from the supplied inputs.
+2. **Collect through Meta's API.** Run `fetch`, inspect pagination and stop reasons, and confirm that returned ads match the intended brand. Keep the actual result count; the configured cap is a maximum, not a quota.
+3. **Extract and review the images.** Run `extract` with authorization, open the downloaded files, and select the real static ad rather than a profile image or video poster. Confirm CTA wording and destination from the snapshot. Fill the per-ad enrichment JSON only after this review.
+4. **Write useful recreation prompts.** Describe each specific image's canvas, composition, typography, colors, exact text hierarchy and reference-asset roles. Use the supplied product photo, founder portrait or service screenshot where the reference design calls for it. Keep observed competitor claims separate from replacement copy, and label prompts as untested unless you actually generate and inspect a recreation.
+5. **Prepare, import and verify.** Validate the schema mapping, check the dry-run counts, then perform the authorized import. Read back the created records, confirm both attachments have finished processing, and compare the written metadata, tags and prompts with the prepared values. The CLI verifies ad-ID uniqueness and attachment ingestion; the metadata comparison is an additional agent review step.
+
+The result is one Airtable row per selected ad ID, with its image, thumbnail, source metadata, relevant tags and recreation prompt. The downloaded image files, source JSON and write receipt stay in ignored `outputs/` for recovery. Unknown end dates remain blank; Created is automatic, and Runtime/Transcript do not apply to static images. Existing authorization covers the requested import; a dry run is a validation step, not a requirement to ask for permission again.
+
+For terminal commands, continue below. If Airtable is already connected to your agent, use the [MCP handoff](#using-an-airtable-mcp-instead-of-a-pat) for schema access and record writes.
+
 ## Requirements
 
 - Python 3.10+ for metadata collection, preparation and Airtable import.
