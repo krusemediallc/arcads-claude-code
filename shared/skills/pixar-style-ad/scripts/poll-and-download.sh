@@ -25,7 +25,7 @@ for kv in "$@"; do
 done
 
 iter=0
-MAX_ITERS="${MAX_ITERS:-90}"     # 90 × 15s = 22.5 min
+MAX_ITERS="${MAX_ITERS:-90}"     # 90 x 15s = 22.5 min
 POLL_INTERVAL="${POLL_INTERVAL:-15}"
 
 while :; do

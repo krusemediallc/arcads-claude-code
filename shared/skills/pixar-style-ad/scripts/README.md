@@ -4,7 +4,8 @@ End-to-end shell + Python pipeline that backs the [guide](../prompting/guide.md)
 
 ## Prerequisites
 
-- `ARCADS_BASIC_AUTH` (preferred) or `ARCADS_API_KEY` in `.env` — see [arcads-external-api SKILL.md](../../arcads-external-api/SKILL.md)
+- `ARCADS_BASIC_AUTH` (preferred) or `ARCADS_API_KEY` in `.env` for still generation
+- `MINIMAX_API_KEY` in `.env` for video generation
 - `ELEVENLABS_API_KEY` in `.env`
 - `ffmpeg` (Homebrew build is fine for video, but the Pillow caption renderer is used because Homebrew ffmpeg ships without `libass` / `drawtext`)
 - `python3` with `Pillow` (`pip install Pillow`)
@@ -25,9 +26,9 @@ mkdir -p "$RUN_DIR"/{stills,clips,vo-beats,captions-png,references}
 2. **`generate-stills.sh`** — fire N gpt-image-2 calls in parallel. One per beat, optionally with reference images for character continuity.
 3. **`poll-and-download.sh`** — poll asset IDs every 15s until generated, download to `$RUN_DIR/stills/`.
 4. (manual) QA the stills. Regenerate any with defects.
-5. **`upload-startframes.sh`** — for each approved still, upload N fresh copies via presigned URL (one per Seedance variation — temp uploads are single-use). Writes a TSV map.
-6. **`generate-seedance.sh`** — fire one Seedance 2.0 image-to-video call per (still × variation). `audioEnabled=true` gives you SFX you can later blend in.
-7. **`poll-and-download.sh`** — reuse to poll the Seedance asset IDs.
+5. **`upload-startframes.sh`** — for each approved still, prepare N fresh copies in the per-run start-frame map.
+6. **`generate-seedance.sh`** — fire one MiniMax H3 image-to-video call per (still × variation). Local first-frame files are converted to data URLs when needed.
+7. **`poll-minimax-and-download.sh`** — poll the MiniMax task IDs and download the finished mp4.
 8. (manual) QA the clips. Pick favorite take per beat.
 9. **`restitch-tight.sh`** — trim each chosen clip to roughly its VO line length (no dead space) and concat with audio preserved.
 10. **`generate-vo-elevenlabs.sh`** — generate ONE VO clip per visual beat so timing snaps to cuts. Use `A.I.` (with periods) for fluid acronym pronunciation; `A I` reads as separated letters.
