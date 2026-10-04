@@ -26,6 +26,27 @@ If you're using this repo to crank out creative, the community is where you lear
 
 **→ [Join The AI Ad Alchemists — $97/month](https://skool.com/mrpaidsocial)**
 
+## Facebook Ad Library → Airtable swipe file
+
+Build a searchable library of competitor image ads with the included [Meta Ad Library → Airtable workflow](scripts/meta-ad-library-import/README.md). Supply up to **10 advertiser or brand entries**; the default collection limit is **100 active image ads per entry**, subject to what Meta's API returns.
+
+The workflow collects ad metadata through **Meta's Ad Library API**, then uses authorized automated headless Chrome to retrieve images from the API's snapshot links. An agent or person reviews each downloaded creative before it is imported into Airtable with:
+
+- **Image and thumbnail attachments**, plus the public Ad Library link.
+- **Brand and advertiser details**, ad copy, dates, platforms and verified CTA links.
+- **Relevant creative tags and format choices** matched to your table's schema.
+- **An individual recreation prompt** describing the image's layout, typography, colors, subject and text hierarchy for your chosen image generator, such as ChatGPT Image 2.5.
+
+Ad-ID checks skip previously imported ads, and the importer verifies that Airtable has received the attachments. The advertised brand stays separate from the Facebook Page, so a shared advertiser such as Skool can be filtered into the right communities.
+
+**Try this with your agent:**
+
+> "Follow scripts/meta-ad-library-import/README.md. Import up to 100 active static image ads for each of these Facebook Page IDs: [IDs], into [Airtable URL]. Use the credentials in my .env. I authorize automated headless extraction of the API-provided snapshots. Inspect every image, fill all applicable fields, select relevant existing tags and formats, and write an individual ChatGPT Image 2.5 recreation prompt. Check for duplicate ad IDs and verify the uploaded attachments."
+
+You need a Meta token with Ad Library access, an Airtable PAT or connected Airtable MCP, and Chrome with the extraction dependencies. API coverage varies by delivery country and access; the tested setup uses explicit UK/EU countries. This workflow writes prompts and does not generate replacement ads.
+
+**[Full setup and commands](scripts/meta-ad-library-import/README.md)** · **[Agent handoff guide](scripts/meta-ad-library-import/README.md#using-this-workflow-with-an-ai-agent)** · **[Advertiser example](scripts/meta-ad-library-import/examples/advertisers.json)**
+
 ## Prerequisites
 
 The agent and the basic Arcads workflows (image generation, video generation, polling) work with just **Python 3.10+** and the API key from setup. Some multi-step pipelines need a few extra CLI tools:
@@ -38,6 +59,7 @@ The agent and the basic Arcads workflows (image generation, video generation, po
 | **Node.js + `npx hyperframes`** | Caption burn-in workflow | `brew install node` (the skill runs `npx` on demand) |
 | **`whisper`** Python package | Caption transcription | `pip install openai-whisper` (or `pip3`) |
 | **`meta-ad-builder` deps** | Publishing to Meta Marketing API | `pip install -r shared/skills/meta-ad-builder/scripts/requirements.txt` |
+| **Chrome + Selenium/Pillow** | Meta Ad Library image extraction | Chrome, then install [workflow dependencies](scripts/meta-ad-library-import/README.md#2-extract-the-images) in a virtual environment |
 
 The image-ad generator scripts (`chatgpt-image-ad`, `nano-banana-image-ad`, `image-ad-clone`) are intentionally stdlib-only — no extra installs needed. The deps above are only required when you invoke the matching multi-step workflow.
 

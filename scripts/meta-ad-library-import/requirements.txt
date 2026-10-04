@@ -1,0 +1,2 @@
+selenium>=4.28,<5
+Pillow>=11,<13
