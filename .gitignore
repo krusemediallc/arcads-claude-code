@@ -16,17 +16,22 @@ __pycache__/
 outputs/
 output/
 
-# New reference media you add stays local: this rule ignores whatever you drop
-# into references/influencers/, references/products/, references/aesthetics/, etc.
+# Reference media is local-only. Whatever you drop into references/influencers/,
+# references/products/, references/aesthetics/, etc. stays on your machine.
 #
-# It does NOT untrack what is already committed. ~150 sample images (~114 MB of
-# AI-generated influencer sheets, product shots and example stills) were added
-# before this rule existed, so they are still tracked and every clone downloads
-# them. To stop shipping them:
-#   git rm -r --cached references/ && git commit -m "Untrack sample reference media"
-# The files stay on your disk; git history keeps them until it is rewritten.
+# The ~150 sample images (~114 MB of AI-generated influencer sheets, product
+# shots and example stills) that used to ship here were untracked on 2026-10-04
+# with `git rm --cached`. They are still in git history, so a full clone still
+# transfers them until history is rewritten (e.g. git-filter-repo) — but a fresh
+# checkout no longer writes 114 MB into the working tree, and nothing new is added.
+#
+# Gotcha: a trailing-slash directory pattern cannot be undone by a later
+# negation, because git never descends into an excluded directory. Do not add
+# "!references/<file>" lines here — they have no effect. (There was one for a
+# README.md that had already been deleted.) The structure placeholders
+# references/.gitignore and the .gitkeep files stay in the repo because they are
+# already tracked, which gitignore does not affect.
 references/
-!references/README.md
 
 
 # Disposable one-off thumbnail iteration scripts (not the canonical skill script)
