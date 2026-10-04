@@ -153,13 +153,15 @@ The agent should treat each folder as a fully independent character sheet — do
 
 ## Credit cost
 
-gpt-image-2 cost varies — check `logs/arcads-api.jsonl` for your recent `creditsCharged` value, or `MASTER_CONTEXT.md` rate table. Standard pattern:
+gpt-image-2 has **no published credit rate** — Arcads exposes no billing endpoint. Check `logs/arcads-api.jsonl` for a recent `creditsCharged` value on this model, or the `MASTER_CONTEXT.md` rate table.
+
+**If neither has a figure, do not show a placeholder as an estimate.** Say the per-image cost is unknown on this account, then calibrate: get approval for the hero image alone (`--n 1`), read its `creditsCharged`, write it into `MASTER_CONTEXT.md`, and only then price the remaining 9. Once the rate `R` is known:
 
 ```
-Hero image:     1 × gpt-image-2 = <log-derived cost>
-9 angle images: 9 × gpt-image-2 = 9 × <log-derived cost>
-─────────────────────────────────────────────────────
-Total:          10 generations  = ~10 × per-image rate
+Hero image:     1 × gpt-image-2 = R
+9 angle images: 9 × gpt-image-2 = 9 × R
+─────────────────────────────────────────
+Total:          10 generations  = ~10 × R
 ```
 
 Plus any QA retry generations (~2 per character sheet is typical for gpt-image-2 vs ~1 for Nano Banana). **Show the cost breakdown and get user confirmation before generating** — gpt-image-2 is typically more expensive per image than Nano Banana 2, so this isn't a "swap and forget" decision.

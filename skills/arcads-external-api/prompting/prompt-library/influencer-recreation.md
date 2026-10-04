@@ -2,8 +2,22 @@
 
 **Use when:** The user provides a photo of an influencer (or themselves) and wants to recreate that person in AI-generated content via Arcads.
 
+## MANDATORY — likeness permission gate (before anything else)
+
+This workflow reproduces a **real, identifiable person's face** from their photo and can animate it into video destined for paid ads. That is a rights question before it is a prompting question, and the repo cannot grant those rights.
+
+Before analyzing the image or writing any prompt, ask in one line and wait for an explicit answer:
+
+> "Is this you, or do you have this person's permission to use their likeness in ads? (yes / no / it's my own face)"
+
+- **Yes / own face** → continue.
+- **No, or unsure** → stop. Do not analyze the photo, write a recreation prompt, or generate. Offer the alternative: build a synthetic character instead with [character-sheet.md](character-sheet.md), which invents a consistent person who does not exist.
+
+Do not infer permission from the fact that the user supplied the photo, and do not treat an earlier approval (tone, template, credit cost) as covering this. This gate is its own, exactly like the dialogue gate in [SKILL.md](../../SKILL.md). Using a real person's likeness in advertising without permission exposes the user to right-of-publicity claims and platform takedowns; the agent is not the one who carries that risk, so it does not get to assume it away.
+
 ## Required flow (do NOT skip steps)
 
+0. **Likeness permission confirmed** (gate above)
 1. User provides a reference image
 2. Agent analyzes the image (Step 1 below)
 3. Agent writes a Nano Banana-style recreation prompt (Step 2)

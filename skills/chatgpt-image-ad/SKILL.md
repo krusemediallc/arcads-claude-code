@@ -82,7 +82,18 @@ For fresh prompts (no template match), follow the structure in [shared/skills/ch
 
 ### Phase 4: Credit cost confirmation (MANDATORY)
 
-Per `arcads-external-api` conventions: present an estimated credit cost (read from `logs/arcads-api.jsonl` for matching past calls, or `MASTER_CONTEXT.md` rate table). Wait for explicit confirmation before firing.
+Per `arcads-external-api` conventions: present an estimated credit cost (read from `logs/arcads-api.jsonl` for matching past calls, or the `MASTER_CONTEXT.md` rate table). Wait for explicit confirmation before firing.
+
+**gpt-image-2 has no published credit rate.** Arcads exposes no billing endpoint, and the shipped `MASTER_CONTEXT.template.md` row is deliberately blank. Do **not** invent a number and do **not** present a placeholder as an estimate.
+
+If neither `logs/arcads-api.jsonl` nor `MASTER_CONTEXT.md` has a `gpt-image-2` figure:
+
+1. Say so plainly: the per-image cost for this model is unknown on this account.
+2. Offer the known comparison — Nano Banana 2 is 0.03 credits/image (`MASTER_CONTEXT.md`), and gpt-image-2 is typically higher.
+3. **Calibrate before batching.** Get approval for a single `--n 1` run, fire it, read `creditsCharged` from the asset's log entry, write that figure into the `MASTER_CONTEXT.md` ChatGPT Image 2 row, then present a real estimate for the full batch.
+4. Only after step 3 may you request confirmation for `--n > 1`.
+
+The generator enforces the confirmation itself: it makes no billable call without `--confirm`, and `--dry-run` prints the billable plan plus the exact request body without spending. Pass `--confirm` **only** after the user has approved the cost.
 
 ### Phase 5: Generate
 
@@ -94,7 +105,7 @@ Per `arcads-external-api` conventions: present an estimated credit cost (read fr
   --image-ref <product.png> \
   [--image-ref <style-board.png>] \
   --out ./generated \
-  --env-file .env
+  --env-file .env \n  --confirm
 
 # For an edit run:
 ~/.claude/skills/chatgpt-image-ad/scripts/generate_image.py \
@@ -104,7 +115,7 @@ Per `arcads-external-api` conventions: present an estimated credit cost (read fr
   [--image-ref <guidance.png>] \
   --n <N> \
   --out ./generated \
-  --env-file .env
+  --env-file .env \n  --confirm
 ```
 
 Each line on stdout is one JSON variant (`variant`, `path`, `asset_id`, `width`, `height`, `prompt`, `mode`, `aspect_ratio`, `model`).

@@ -16,7 +16,12 @@ Modes:
 Output contract:
   stdout: one JSON object per successfully generated variant, one per line
   stderr: human-readable progress + errors
-  exit:   0 if at least one variant succeeded; 1 if all failed; 2 on bad args.
+  exit:   0 if at least one variant succeeded (or --dry-run completed); 1 if all
+          failed; 2 on bad args or when --confirm is missing.
+
+Spending: this script bills your Arcads account. It makes no billable call unless
+  --confirm is passed. Use --dry-run to see the billable plan and the exact request
+  body first. Pass --confirm only after the user has approved the credit cost.
 
 Stdlib only.
 """
@@ -45,6 +50,7 @@ POLL_INTERVAL_S = 3
 POLL_TIMEOUT_S = 240
 MIN_DIMENSION = 1024
 MAX_REFS = 14  # Arcads cap for Nano Banana family
+MAX_QA_RETRIES = 2  # QA-fix regenerations allowed per variant (arcads-external-api/SKILL.md)
 
 NO_CHROME_SUFFIX = (
     "\n\n[NO PLATFORM CHROME] Render only the standalone ad creative (the static image uploaded to Meta), "
@@ -262,7 +268,7 @@ def upload_reference(local_path: Path, base_url: str, auth_hdr: str) -> str:
     return file_path
 
 
-def submit(
+def build_body(
     prompt: str,
     model: str,
     mode: str,
@@ -271,11 +277,14 @@ def submit(
     ref_filepaths: list[str],
     product_id: str | None,
     project_id: str | None,
-    base_url: str,
-    auth_hdr: str,
     allow_chrome: bool = False,
     no_safe_zone: bool = False,
-) -> str:
+) -> dict:
+    """Build the /v2/images/generate request body. No network access.
+
+    Split out of submit() so --dry-run can show the exact payload that would be
+    sent without making any billable call.
+    """
     final_prompt = prompt
     if not allow_chrome:
         final_prompt += NO_CHROME_SUFFIX
@@ -298,6 +307,27 @@ def submit(
         body["source"] = source_filepath
     if ref_filepaths:
         body["referenceImages"] = ref_filepaths
+    return body
+
+
+def submit(
+    prompt: str,
+    model: str,
+    mode: str,
+    aspect_ratio: str | None,
+    source_filepath: str | None,
+    ref_filepaths: list[str],
+    product_id: str | None,
+    project_id: str | None,
+    base_url: str,
+    auth_hdr: str,
+    allow_chrome: bool = False,
+    no_safe_zone: bool = False,
+) -> str:
+    body = build_body(
+        prompt, model, mode, aspect_ratio, source_filepath, ref_filepaths,
+        product_id, project_id, allow_chrome=allow_chrome, no_safe_zone=no_safe_zone,
+    )
 
     headers = {
         "Authorization": auth_hdr,
@@ -447,6 +477,19 @@ def main() -> int:
                    help="Allow platform/screenshot UI in the output.")
     p.add_argument("--no-safe-zone", action="store_true",
                    help="Skip the edge-safe suffix.")
+    p.add_argument(
+        "--confirm",
+        action="store_true",
+        help=(
+            "Required to spend. Pass this ONLY after the user has approved the credit "
+            "cost for this run. Without it the script prints the billable plan and exits 2."
+        ),
+    )
+    p.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print the billable plan and the resolved request body, then exit. No API call.",
+    )
     args = p.parse_args()
 
     if args.model not in ALLOWED_MODELS:
@@ -506,6 +549,39 @@ def main() -> int:
         f"{'aspect=' + aspect if aspect else 'aspect=from-source'} "
         f"chrome={chrome_state} refs={len(args.image_ref)} -> {args.out}/"
     )
+
+    # ── Spend gate ─────────────────────────────────────────────────────
+    # Arcads bills per generation call. Neither --confirm nor --dry-run is a
+    # cosmetic flag: without one of them this script makes no billable call.
+    worst_case = args.n * (1 + MAX_QA_RETRIES)
+    log("")
+    log(f"BILLABLE: {args.n} Arcads generation call(s) charged to your account.")
+    log(f"  model={args.model} mode={args.mode} "
+        f"{'aspect=' + aspect if aspect else 'aspect=from-source'} refs={len(args.image_ref)}")
+    log("  Credit cost per call is NOT exposed by the Arcads API. Source it from")
+    log("  logs/arcads-api.jsonl (same model + config) or MASTER_CONTEXT.md.")
+    log(f"  QA-fix retries may add up to {MAX_QA_RETRIES} call(s) per variant "
+        f"(worst case {worst_case} calls this run).")
+
+    if args.dry_run:
+        log("")
+        log("DRY RUN -- no billable call made. Resolved request body for variant 1:")
+        preview = build_body(
+            args.prompt, args.model, args.mode, aspect,
+            "<source-filePath-after-upload>" if args.source else None,
+            [f"<ref-filePath-{i + 1}-after-upload>" for i in range(len(args.image_ref))],
+            product_id, project_id,
+            allow_chrome=args.allow_chrome, no_safe_zone=args.no_safe_zone,
+        )
+        print(json.dumps(preview, indent=2), flush=True)
+        return 0
+
+    if not args.confirm:
+        log("")
+        log("error: refusing to spend without confirmation.")
+        log("       Re-run with --confirm once the user has approved the credit cost,")
+        log("       or with --dry-run to inspect the payload without spending.")
+        return 2
 
     results: list[dict] = []
     errors: list[str] = []

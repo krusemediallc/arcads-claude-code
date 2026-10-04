@@ -112,6 +112,7 @@ This is the workflow inside any chat session where the user wants to make an ad:
 4. **Show the credit-cost estimate** per the per-API repo's existing conventions (read `logs/<api>-api.jsonl` or `MASTER_CONTEXT.md` for the rate). Wait for explicit confirmation.
 
 5. **Generate.** Run the matching `scripts/generate_image.py` with `--prompt`, `--aspect-ratio`, `--n`, and reference images.
+   The generator refuses to spend without `--confirm`; pass it only after the user approves the credit cost. `--dry-run` prints the billable plan and the exact request body without spending.
 
 6. **Visual QA.** Read each output image. Check for: garbled small text (most common gpt-image-2 failure), extra fingers / wrong limb count (Nano Banana failure), wordmark drift, wrong text count, UI proportion drift. Regenerate with a revised prompt if defective (cap 2 retries).
 

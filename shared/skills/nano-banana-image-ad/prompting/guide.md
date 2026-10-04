@@ -133,7 +133,7 @@ Run the helper script:
   [--image-ref <style-board.png>] \
   [--image-ref <character.png>] \
   --out ./generated \
-  --env-file .env
+  --env-file .env \n  --confirm
 
 # For higher-stakes hero shots:
 ~/.claude/skills/nano-banana-image-ad/scripts/generate_image.py \
@@ -143,7 +143,7 @@ Run the helper script:
   --n <N> \
   --image-ref <product.png> \
   --out ./generated \
-  --env-file .env
+  --env-file .env \n  --confirm
 
 # For an edit run:
 ~/.claude/skills/nano-banana-image-ad/scripts/generate_image.py \
@@ -154,7 +154,7 @@ Run the helper script:
   [--image-ref <guidance.png>] \
   --n <N> \
   --out ./generated \
-  --env-file .env
+  --env-file .env \n  --confirm
 ```
 
 Each line on stdout is JSON for one variant. Display the paths to the user.

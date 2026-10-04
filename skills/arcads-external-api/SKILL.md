@@ -85,6 +85,16 @@ At the **start of each session** that will generate assets, create a folder and 
 
 This ensures every generated asset is findable in the Arcads dashboard under **Product → "Arcads API - {date}"**.
 
+## MANDATORY — likeness permission gate
+
+If a workflow reproduces a **real, identifiable person** from a photo — `influencer-recreation.md`, any `refImageAsBase64` / `startFrame` flow built on a photo of someone, or an edit that puts a real face into a new scene — ask before analyzing the image or writing the prompt:
+
+> "Is this you, or do you have this person's permission to use their likeness in ads? (yes / no / it's my own face)"
+
+Stop on "no" or uncertainty and offer a synthetic character instead ([character-sheet.md](prompting/prompt-library/character-sheet.md)). Never infer permission from the user having supplied the photo. This gate is separate from the credit cost and dialogue gates; all apply independently. Full rationale in [influencer-recreation.md](prompting/prompt-library/influencer-recreation.md).
+
+This does not apply to fully synthetic characters, the user's own product shots, or style references with no identifiable person in them.
+
 ## Credit cost estimation (MANDATORY — show before generating)
 
 Before firing **any** generation calls, calculate and present the total credit cost to the user as an **estimate**. **Do not generate until the user confirms.**

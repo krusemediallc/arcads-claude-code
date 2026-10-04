@@ -99,6 +99,7 @@ _Fill in your plan's credit costs below. The agent references this table before 
 | Nano Banana 2 (image, `nano-banana-2`) | 0.03 | ~35s generation time |
 | Nano Banana Pro (image, `nano-banana`) | _(fill in)_ | |
 | Nano Banana (scene) | _(fill in)_ | |
+| ChatGPT Image 2 (image, `gpt-image-2`) | _(fill in — calibrate first)_ | **No published rate.** Typically higher per image than Nano Banana 2. Run one `--n 1` generation, read `creditsCharged` from `logs/arcads-api.jsonl`, and write it here before approving a batch. |
 
 ## API learnings — Arcads
 

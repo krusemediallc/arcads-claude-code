@@ -58,6 +58,8 @@ cd arcads-claude-code
 ./scripts/setup.sh
 ```
 
+> **What you're responsible for.** These skills generate advertising creative and can publish it to a live ad account. You own what comes out: that the claims in your copy are substantiable, that the creative meets Meta's ad policies, and that you have the rights to every likeness, logo, product shot, and piece of music you feed in or generate. The likeness point is the easy one to get wrong — recreating a real, identifiable person from their photo needs that person's permission, and the agent will ask you for it before it generates. Credit and ad spend are charged to your own accounts; the agent estimates costs and asks before spending, but the estimate is an estimate. Confirm pricing in the Arcads platform if precision matters.
+
 This will:
 - Sign up if you need an Arcads account: [arcads.ai/?via=claude-code](https://arcads.ai/?via=claude-code)
 - Ask for your **Arcads API key** (find it at [app.arcads.ai/settings/api](https://app.arcads.ai/settings/api))

@@ -96,7 +96,7 @@ Use the matching `generate_image.py` to fire one generation. Pass the original r
   --aspect-ratio <matched_ratio> \
   --image-ref <reference_path> \
   --out iterations/clone-tmp \
-  --env-file .env
+  --env-file .env \n  --confirm
 ```
 
 (Write the prompt to a temp file to avoid shell-quoting hell.) Wait for completion. Read the generated image.

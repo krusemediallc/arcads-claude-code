@@ -80,7 +80,11 @@ For fresh prompts (no template match), follow the structure in [shared/skills/na
 
 ### Phase 4: Credit cost confirmation (MANDATORY)
 
-Present the estimated credit cost (read from `logs/arcads-api.jsonl` for matching past calls). Surface the model variant prominently: `nano-banana-pro` costs more than `nano-banana-2`. Wait for explicit confirmation.
+Present the estimated credit cost (read from `logs/arcads-api.jsonl` for matching past calls, or the `MASTER_CONTEXT.md` rate table — `nano-banana-2` ships at 0.03 credits/image). Surface the model variant prominently: `nano-banana-pro` costs more than `nano-banana-2`. Wait for explicit confirmation.
+
+If no rate exists for the chosen variant, say so rather than inventing one, and calibrate with a single `--n 1` run before approving a batch.
+
+The generator enforces this itself: it makes no billable call without `--confirm`, and `--dry-run` prints the billable plan plus the exact request body without spending. Pass `--confirm` **only** after the user has approved the cost.
 
 ### Phase 5: Generate
 
@@ -93,7 +97,7 @@ Present the estimated credit cost (read from `logs/arcads-api.jsonl` for matchin
   [--image-ref <character.png>] \
   [--image-ref <style.png>] \
   --out ./generated \
-  --env-file .env
+  --env-file .env \n  --confirm
 
 # For higher-stakes hero shots:
 ~/.claude/skills/nano-banana-image-ad/scripts/generate_image.py \
@@ -103,7 +107,7 @@ Present the estimated credit cost (read from `logs/arcads-api.jsonl` for matchin
   --n <N> \
   --image-ref <product.png> \
   --out ./generated \
-  --env-file .env
+  --env-file .env \n  --confirm
 
 # For an edit run (inpaint):
 ~/.claude/skills/nano-banana-image-ad/scripts/generate_image.py \
@@ -114,7 +118,7 @@ Present the estimated credit cost (read from `logs/arcads-api.jsonl` for matchin
   [--image-ref <guidance.png>] \
   --n <N> \
   --out ./generated \
-  --env-file .env
+  --env-file .env \n  --confirm
 ```
 
 Each line on stdout is one JSON variant (`variant`, `path`, `asset_id`, `width`, `height`, `prompt`, `mode`, `aspect_ratio`, `model`).

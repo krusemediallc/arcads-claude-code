@@ -117,7 +117,7 @@ Run the helper script (location depends on the per-API repo):
   --image-ref <product.png> \
   [--image-ref <style-board.png>] \
   --out ./generated \
-  --env-file .env
+  --env-file .env \n  --confirm
 ```
 
 For an edit run, switch to `--mode image_edit --source <path>`.
