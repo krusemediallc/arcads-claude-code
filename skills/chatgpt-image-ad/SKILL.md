@@ -120,7 +120,7 @@ The generator enforces the confirmation itself: it makes no billable call withou
 
 Each line on stdout is one JSON variant (`variant`, `path`, `asset_id`, `width`, `height`, `prompt`, `mode`, `aspect_ratio`, `model`).
 
-Log each call to `logs/arcads-api.jsonl` with `model=gpt-image-2`, the variant count, `referenceImages` count, and the returned `asset_id`s, per `arcads-external-api` skill conventions.
+**The script logs this itself** — one record per variant appended to `logs/arcads-api.jsonl` (model, mode, aspect ratio, ref count, prompt word count, `asset_id`, status, `creditsCharged`, elapsed), including failed calls. You do not need to write it by hand. Point it elsewhere with `--log-file`, or disable with `--no-log`. If the run reports `warn: ... skipping API logging`, you are running from outside the repo — pass `--log-file <repo>/logs/arcads-api.jsonl` so the cost history keeps accumulating.
 
 ### Phase 6: Visual QA (MANDATORY)
 

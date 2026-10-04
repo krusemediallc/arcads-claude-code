@@ -34,6 +34,7 @@ import os
 import re
 import subprocess
 import sys
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -89,6 +90,43 @@ MEDIA_TYPES = {
 
 def log(msg: str) -> None:
     print(msg, file=sys.stderr, flush=True)
+
+
+# One shared lock: variants run concurrently and each appends one line.
+_LOG_LOCK = threading.Lock()
+
+
+def resolve_log_path(explicit: Path, disabled: bool) -> Path | None:
+    """Return the JSONL path to append to, or None to skip logging.
+
+    Only writes when the parent directory already exists, so running the script
+    from an arbitrary cwd does not scatter new logs/ directories around.
+    """
+    if disabled:
+        return None
+    if explicit.parent.exists():
+        return explicit
+    log(f"warn: {explicit.parent} does not exist - skipping API logging "
+        f"(use --log-file to point at the repo's logs/, or --no-log to silence this)")
+    return None
+
+
+def log_api_call(log_path: "Path | None", record: dict) -> None:
+    """Append one JSON line describing a generation call.
+
+    logs/README.md describes a two-phase write (append when fired, update the
+    same line after polling). We append once, after the call reaches a terminal
+    state, because variants run in parallel and rewriting a line in place is not
+    thread-safe. Never records credentials or full prompt text - word count only.
+    """
+    if log_path is None:
+        return
+    try:
+        line = json.dumps(record)
+        with _LOG_LOCK, log_path.open("a", encoding="utf-8") as f:
+            print(line, file=f)   # one JSON object per line
+    except (OSError, TypeError, ValueError) as e:
+        log(f"warn: could not append to {log_path}: {e}")
 
 
 def load_env(env_path: Path) -> dict:
@@ -341,7 +379,7 @@ def submit(
     return asset_id
 
 
-def poll(asset_id: str, base_url: str, auth_hdr: str) -> str:
+def poll(asset_id: str, base_url: str, auth_hdr: str) -> "tuple[str, dict]":
     headers = {"Authorization": auth_hdr, "Accept": "application/json"}
     deadline = time.monotonic() + POLL_TIMEOUT_S
     last_status = None
@@ -366,7 +404,7 @@ def poll(asset_id: str, base_url: str, auth_hdr: str) -> str:
                             break
             if not url:
                 raise RuntimeError(f"generated but no url in response: {resp}")
-            return url
+            return url, resp
         if status in {"failed", "error", "rejected"}:
             err = resp.get("error") or resp.get("failureReason") or resp.get("message")
             raise RuntimeError(f"generation failed: {err} (full: {resp})")
@@ -391,39 +429,81 @@ def generate_one(
     project_id: str | None,
     allow_chrome: bool,
     no_safe_zone: bool,
+    log_path: "Path | None" = None,
 ) -> dict:
-    log(f"variant {variant}: uploading refs ({len(ref_locals)})…")
-    ref_filepaths = [upload_reference(p, base_url, auth_hdr) for p in ref_locals]
-    source_filepath = upload_reference(source_local, base_url, auth_hdr) if source_local else None
-
-    log(f"variant {variant}: submitting (model={model}, mode={mode})…")
-    asset_id = submit(
-        prompt, model, mode, aspect_ratio, source_filepath, ref_filepaths,
-        product_id, project_id, base_url, auth_hdr,
-        allow_chrome=allow_chrome, no_safe_zone=no_safe_zone,
-    )
-    log(f"variant {variant}: id={asset_id}")
-    url = poll(asset_id, base_url, auth_hdr)
-    dest = out_dir / f"{ts}-{slug}-v{variant}.png"
-    log(f"variant {variant}: downloading -> {dest.name}")
-    http_download(url, dest)
-    w, h = probe_dimensions(dest)
-    if w and h and (w < MIN_DIMENSION or h < MIN_DIMENSION):
-        log(
-            f"variant {variant}: WARNING image is {w}x{h}, below {MIN_DIMENSION}x{MIN_DIMENSION} "
-            f"floor. Regenerate or upscale."
-        )
-    return {
-        "variant": variant,
-        "path": str(dest),
-        "asset_id": asset_id,
-        "width": w,
-        "height": h,
-        "prompt": prompt,
-        "mode": mode,
-        "aspect_ratio": aspect_ratio,
+    started = time.monotonic()
+    record = {
+        "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+        "endpoint": "POST /v2/images/generate",
         "model": model,
+        "assetId": None,
+        "productId": product_id,
+        "projectId": project_id,
+        "request": {
+            "mode": mode,
+            "aspectRatio": aspect_ratio,
+            "referenceImagesCount": len(ref_locals),
+            "sourceImage": bool(source_local),
+            # Prompt text is deliberately not logged (logs/README.md).
+            "promptWordCount": len(prompt.split()),
+        },
+        "session": {"variant": variant},
     }
+    try:
+        log(f"variant {variant}: uploading refs ({len(ref_locals)})…")
+        ref_filepaths = [upload_reference(p, base_url, auth_hdr) for p in ref_locals]
+        source_filepath = upload_reference(source_local, base_url, auth_hdr) if source_local else None
+
+        log(f"variant {variant}: submitting (model={model}, mode={mode})…")
+        asset_id = submit(
+            prompt, model, mode, aspect_ratio, source_filepath, ref_filepaths,
+            product_id, project_id, base_url, auth_hdr,
+            allow_chrome=allow_chrome, no_safe_zone=no_safe_zone,
+        )
+        log(f"variant {variant}: id={asset_id}")
+        record["assetId"] = asset_id
+        url, asset_resp = poll(asset_id, base_url, auth_hdr)
+        dest = out_dir / f"{ts}-{slug}-v{variant}.png"
+        log(f"variant {variant}: downloading -> {dest.name}")
+        http_download(url, dest)
+        w, h = probe_dimensions(dest)
+        if w and h and (w < MIN_DIMENSION or h < MIN_DIMENSION):
+            log(
+                f"variant {variant}: WARNING image is {w}x{h}, below {MIN_DIMENSION}x{MIN_DIMENSION} "
+                f"floor. Regenerate or upscale."
+            )
+        result = {
+            "variant": variant,
+            "path": str(dest),
+            "asset_id": asset_id,
+            "width": w,
+            "height": h,
+            "prompt": prompt,
+            "mode": mode,
+            "aspect_ratio": aspect_ratio,
+            "model": model,
+        }
+        record["response"] = {
+            "status": asset_resp.get("status"),
+            "creditsCharged": asset_resp.get("creditsCharged",
+                                            (asset_resp.get("data") or {}).get("creditsCharged")
+                                            if isinstance(asset_resp.get("data"), dict) else None),
+            "generationTimeSec": round(time.monotonic() - started, 1),
+            "width": result["width"],
+            "height": result["height"],
+            "error": None,
+        }
+        log_api_call(log_path, record)
+        return result
+    except Exception as e:
+        record["response"] = {
+            "status": "failed",
+            "creditsCharged": None,
+            "generationTimeSec": round(time.monotonic() - started, 1),
+            "error": f"{type(e).__name__}: {e}"[:300],
+        }
+        log_api_call(log_path, record)
+        raise
 
 
 def main() -> int:
@@ -490,6 +570,20 @@ def main() -> int:
         action="store_true",
         help="Print the billable plan and the resolved request body, then exit. No API call.",
     )
+    p.add_argument(
+        "--log-file",
+        type=Path,
+        default=Path("logs/arcads-api.jsonl"),
+        help=(
+            "JSONL file to append one record per generation call to "
+            "(default: logs/arcads-api.jsonl). Skipped if the parent dir is absent."
+        ),
+    )
+    p.add_argument(
+        "--no-log",
+        action="store_true",
+        help="Do not append to the API log.",
+    )
     args = p.parse_args()
 
     if args.model not in ALLOWED_MODELS:
@@ -541,6 +635,7 @@ def main() -> int:
     args.out.mkdir(parents=True, exist_ok=True)
     ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     slug = slugify(args.prompt)
+    log_path = resolve_log_path(args.log_file, args.no_log)
 
     aspect = args.aspect_ratio if args.mode == "image" else None
     chrome_state = "allowed" if args.allow_chrome else "stripped"
@@ -592,6 +687,7 @@ def main() -> int:
                 args.source, list(args.image_ref), args.out, slug, ts,
                 base_url, auth_hdr, product_id, project_id,
                 args.allow_chrome, args.no_safe_zone,
+                log_path,
             ): i
             for i in range(1, args.n + 1)
         }
@@ -607,6 +703,8 @@ def main() -> int:
     for r in results:
         print(json.dumps(r), flush=True)
 
+    if log_path is not None and results:
+        log(f"logged {len(results)} call(s) to {log_path}")
     if not results:
         log(f"all {args.n} variant(s) failed")
         return 1

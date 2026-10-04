@@ -16,9 +16,15 @@ __pycache__/
 outputs/
 output/
 
-# All reference media is local-only (face photos, product shots, style boards).
-# Drop your refs into references/influencers/, references/products/,
-# references/aesthetics/, etc. — they stay on your machine.
+# New reference media you add stays local: this rule ignores whatever you drop
+# into references/influencers/, references/products/, references/aesthetics/, etc.
+#
+# It does NOT untrack what is already committed. ~150 sample images (~114 MB of
+# AI-generated influencer sheets, product shots and example stills) were added
+# before this rule existed, so they are still tracked and every clone downloads
+# them. To stop shipping them:
+#   git rm -r --cached references/ && git commit -m "Untrack sample reference media"
+# The files stay on your disk; git history keeps them until it is rewritten.
 references/
 !references/README.md
 

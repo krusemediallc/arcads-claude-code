@@ -4,7 +4,11 @@ This directory contains **append-only logs** of every Arcads API generation call
 
 ## Files
 
-- **`arcads-api.jsonl`** — one JSON object per line. Every `POST` to a generation endpoint (`/v2/videos/generate`, `/v2/images/generate`, `/v1/b-roll`, `/v1/scene`, etc.) appends one line when the request is fired and updates the same line with final status/credits after polling completes.
+- **`arcads-api.jsonl`** — one JSON object per line. Every `POST` to a generation endpoint (`/v2/videos/generate`, `/v2/images/generate`, `/v1/b-roll`, `/v1/scene`, etc.) gets one line.
+
+  **Who writes it.** The two image-ad generators (`skills/chatgpt-image-ad/scripts/generate_image.py` and the Nano Banana sibling) append their own records automatically — one line per variant, written once the call reaches a terminal state (`generated` or failed), including failures. Disable with `--no-log`, redirect with `--log-file`. Every other endpoint is still the agent's job to log.
+
+  **One append, not two.** Variants run concurrently, so rewriting a line in place after polling is not thread-safe. The scripts therefore write a single complete record at the end rather than appending on fire and updating later. A record with `"status": "failed"` and a non-null `response.error` is a call that was attempted; treat `creditsCharged: null` as unknown, not zero.
 
 ## Entry schema
 

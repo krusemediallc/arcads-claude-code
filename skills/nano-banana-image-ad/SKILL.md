@@ -123,7 +123,7 @@ The generator enforces this itself: it makes no billable call without `--confirm
 
 Each line on stdout is one JSON variant (`variant`, `path`, `asset_id`, `width`, `height`, `prompt`, `mode`, `aspect_ratio`, `model`).
 
-Log each call to `logs/arcads-api.jsonl` with the model variant, ref count, and returned `asset_id`s.
+**The script logs this itself** — one record per variant appended to `logs/arcads-api.jsonl` (model variant, mode, aspect ratio, ref count, prompt word count, `asset_id`, status, `creditsCharged`, elapsed), including failed calls. You do not need to write it by hand. Redirect with `--log-file`, disable with `--no-log`. A `warn: ... skipping API logging` line means you are outside the repo — pass `--log-file <repo>/logs/arcads-api.jsonl`.
 
 ### Phase 6: Visual QA (MANDATORY)
 

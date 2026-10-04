@@ -1,0 +1,61 @@
+name: CI
+
+# This repo is mostly shell and stdlib Python with no build step, so CI's job is
+# to catch the two things that actually break for people cloning it: a script
+# that no longer parses, and a money/safety gate that quietly stopped holding.
+# Everything here is offline and needs no credentials and no pip install.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  syntax:
+    name: Syntax (shell + python)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile every tracked Python file
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(git ls-files '*.py')
+          echo "checking ${#files[@]} python file(s)"
+          python -m py_compile "${files[@]}"
+
+      - name: Parse every tracked shell script
+        run: |
+          set -uo pipefail
+          rc=0
+          while IFS= read -r f; do
+            if ! bash -n "$f"; then
+              echo "::error file=$f::bash -n failed"
+              rc=1
+            fi
+          done < <(git ls-files '*.sh')
+          exit $rc
+
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Spend and safety gates
+        run: python -m unittest discover -s tests -p 'test_*.py' -v
+
+      - name: Meta Ad Library importer
+        # -s without -t: the tests directory has no __init__.py, so discovery
+        # from the repo root fails with "Start directory is not importable".
+        run: python -m unittest discover -s scripts/meta-ad-library-import/tests -p 'test_*.py' -v
