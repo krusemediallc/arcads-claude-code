@@ -38,7 +38,6 @@ INSIGHT_FIELDS = [
 def get_ad_insights(ad_account, token, date_preset):
     url = f"{meta_api.BASE_URL}/{ad_account}/insights"
     params = {
-        "access_token": token,
         "level": "ad",
         "fields": ",".join(INSIGHT_FIELDS),
         "date_preset": date_preset,
@@ -50,7 +49,7 @@ def get_ad_insights(ad_account, token, date_preset):
     }
     all_insights = []
     while url:
-        resp = requests.get(url, params=params, timeout=60)
+        resp = requests.get(url, headers=meta_api.auth_headers(), params=params, timeout=60)
         data = resp.json()
         if "error" in data:
             print(f"API Error: {json.dumps(data['error'], indent=2)}")
@@ -64,13 +63,12 @@ def get_ad_insights(ad_account, token, date_preset):
 def get_ad_creative(ad_id, token):
     url = f"{meta_api.BASE_URL}/{ad_id}"
     params = {
-        "access_token": token,
         # asset_feed_spec holds the rotating copy for multi-variant (TEXT_LIQUIDITY)
         # ads; body/title cover legacy single-copy ads. Do NOT request
         # link_description — it is not a valid creative field and errors the call.
         "fields": "creative{id,name,title,body,object_story_spec,asset_feed_spec}",
     }
-    resp = requests.get(url, params=params, timeout=60)
+    resp = requests.get(url, headers=meta_api.auth_headers(), params=params, timeout=60)
     data = resp.json()
     if "error" in data:
         print(f"  creative fetch error for {ad_id}: {data['error'].get('message')}")

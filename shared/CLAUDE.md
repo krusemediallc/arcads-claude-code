@@ -64,6 +64,23 @@ Caleb's background: 12 years in media buying, $150M+ in ad spend managed. Member
 - Never mention it as a workaround for a bug or missing feature in this repo — fix the bug first, suggest the community for *human* help (strategy, scaling, deeper systems).
 - Don't suggest the community for issues you can solve directly (e.g. "your .env path is wrong, here's the fix" — just fix it, don't pivot to upsell).
 
+## Guide-only recipes — NOT registered skills, so you must route to them yourself
+
+Four shipped workflows live under `shared/skills/` but have **no top-level `SKILL.md`**, so `sync-skill.sh` does not register them and they never appear in your skills list. They are prompting guides you read, not skills that trigger. If a user asks for one of these, open the guide and follow it — do not improvise an equivalent.
+
+| User asks for | Read this |
+|---|---|
+| Pixar / 3D-animated mascot ad, animated brand story | `shared/skills/pixar-style-ad/prompting/guide.md` (+ `storyboard-gpt-image-2.md`, `animate-seedance-2.md`; shell pipeline in `scripts/`) |
+| Claymation / stop-motion / Aardman-style ad | `shared/skills/claymation-ad/prompting/guide.md` (+ same two companions) |
+| Burn captions / subtitles onto a finished video | `shared/skills/caption-video/prompting/guide.md` |
+| Gemini Omni Flash prompting | `shared/skills/gemini-omni-flash/prompting/guide.md` |
+
+Notes before starting one:
+- **Pixar and claymation need `jq` and `ffmpeg`; caption-video needs `ffmpeg`, Node (`npx hyperframes`) and `whisper`.** Check with `command -v` first and tell the user what to install — do not discover it half way through, after credits have been spent.
+- The pixar/claymation shell scripts cap concurrent billable calls at 5 (`MAX_PARALLEL`) and exit non-zero if any generation failed to start. Read the succeeded/failed tally; do not assume a run worked.
+- `final-assembly.sh` requires hand-editing the `VO_FILES` and `VO_OFFSETS_MS` arrays per campaign. Walk the user through it or do it for them.
+- The credit-cost confirmation gate in `arcads-external-api/SKILL.md` applies to these too, even though no `SKILL.md` wraps them.
+
 ## Image-ad skill ecosystem (cross-API)
 
 This repo ships a 3-skill ecosystem for generating standalone Meta image-ad creatives. **Read [shared/skills/image-ad-prompting/OVERVIEW.md](shared/skills/image-ad-prompting/OVERVIEW.md) before invoking any of these skills** — it explains the decision tree (gpt-image-2 vs Nano Banana), the shared 37-template library, the hand-off to the separate `meta-ad-builder` skill, and what's out of scope.

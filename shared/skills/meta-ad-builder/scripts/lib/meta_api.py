@@ -36,6 +36,23 @@ def get_ad_account_id():
     return acct if acct.startswith("act_") else f"act_{acct}"
 
 
+def auth_headers():
+    """Bearer header for Graph API calls.
+
+    The token goes in a header, never in a query string or form body: URLs end up
+    in proxy logs, crash reports and shell history. Matches the pattern in
+    scripts/meta-ad-library-import/import_ads.py.
+    """
+    return {"Authorization": "Bearer " + get_access_token()}
+
+
+# Every Graph call gets an explicit timeout. Without one, requests blocks forever
+# on a half-open connection and the deploy appears to hang with no output.
+TIMEOUT_JSON = 60
+TIMEOUT_UPLOAD_IMAGE = 120
+TIMEOUT_UPLOAD_VIDEO = 900
+
+
 def resolve_output_dir(run_slug):
     """Resolve a per-run output directory.
 
@@ -61,12 +78,12 @@ def upload_image(path, name=None):
     url = f"{BASE_URL}/{get_ad_account_id()}/adimages"
     resp = requests.post(
         url,
+        headers=auth_headers(),
         data={
-            "access_token": get_access_token(),
             "bytes": img_b64,
             "name": (name or path.stem)[:90],
         },
-        timeout=120,
+        timeout=TIMEOUT_UPLOAD_IMAGE,
     )
     data = resp.json()
     if "images" in data:
@@ -88,8 +105,9 @@ def upload_video(path):
     url = f"{BASE_URL}/{get_ad_account_id()}/advideos"
     with open(path, "rb") as f:
         files = {"source": (path.name, f, "video/mp4")}
-        data = {"access_token": get_access_token(), "name": path.name}
-        resp = requests.post(url, data=data, files=files, timeout=900)
+        data = {"name": path.name}
+        resp = requests.post(url, headers=auth_headers(), data=data, files=files,
+                             timeout=TIMEOUT_UPLOAD_VIDEO)
     if resp.status_code != 200:
         print(f"  ERROR HTTP {resp.status_code}: {resp.text[:500]}")
         return None
@@ -112,10 +130,9 @@ def wait_for_video_processing(video_id, max_wait=360):
     url = f"{BASE_URL}/{video_id}"
     for attempt in range(max_wait // 10):
         time.sleep(10)
-        resp = requests.get(url, params={
-            "access_token": get_access_token(),
+        resp = requests.get(url, headers=auth_headers(), params={
             "fields": "status,picture,thumbnails{uri,is_preferred}",
-        })
+        }, timeout=TIMEOUT_JSON)
         data = resp.json()
         if "error" in data:
             print(f"    Poll error: {data['error'].get('message', '?')}")
@@ -130,19 +147,24 @@ def wait_for_video_processing(video_id, max_wait=360):
             preferred = next((t for t in thumbs if t.get("is_preferred")), None)
             return (preferred or {}).get("uri") or data.get("picture")
     print("  WARNING: processing timed out. Falling back to picture.")
-    resp = requests.get(url, params={"access_token": get_access_token(), "fields": "picture"})
+    resp = requests.get(url, headers=auth_headers(), params={"fields": "picture"},
+                        timeout=TIMEOUT_JSON)
     return resp.json().get("picture")
 
 
 def create_ad(adset_id, ad_name, creative, status="PAUSED", pixel_id=None):
-    """Create an ad in an ad set. Retries transient OAuthException errors.
+    """Create an ad in an ad set. Never auto-retried.
 
     status defaults to PAUSED — the skill never launches spending ads
     automatically. The user reviews and un-pauses in Ads Manager.
+
+    Ad creation is not idempotent: Meta offers no idempotency key here, and a
+    transient error can be returned *after* the ad was created. Retrying would
+    then silently produce duplicate ads in the ad set. So this returns None and
+    tells the caller to look before trying again.
     """
     url = f"{BASE_URL}/{get_ad_account_id()}/ads"
     payload = {
-        "access_token": get_access_token(),
         "adset_id": adset_id,
         "name": ad_name,
         "status": status,
@@ -154,19 +176,24 @@ def create_ad(adset_id, ad_name, creative, status="PAUSED", pixel_id=None):
             "fb_pixel": [pixel_id],
         }])
 
-    for attempt in range(1, 5):
-        resp = requests.post(url, data=payload)
-        data = resp.json()
-        if "error" not in data:
-            ad_id = data["id"]
-            print(f"  Created ad: {ad_id} ({ad_name}) [status={status}]")
-            return ad_id
-        err = data["error"]
-        if err.get("is_transient") and attempt < 4:
-            backoff = min(60, 5 * (2 ** (attempt - 1)))
-            print(f"  Transient error (code {err.get('code')}). Retry {attempt}/4 in {backoff}s.")
-            time.sleep(backoff)
-            continue
-        print(f"  ERROR creating ad: {json.dumps(err, indent=2)}")
+    try:
+        resp = requests.post(url, headers=auth_headers(), data=payload,
+                             timeout=TIMEOUT_JSON)
+    except requests.exceptions.RequestException as e:
+        print(f"  ERROR creating ad '{ad_name}': request did not complete ({type(e).__name__}).")
+        print("  The ad MAY still have been created. Check the ad set in Ads Manager for")
+        print(f"  an ad named '{ad_name}' before running this again, or you will get a duplicate.")
         return None
+
+    data = resp.json()
+    if "error" not in data:
+        ad_id = data["id"]
+        print(f"  Created ad: {ad_id} ({ad_name}) [status={status}]")
+        return ad_id
+
+    err = data["error"]
+    print(f"  ERROR creating ad '{ad_name}': {json.dumps(err, indent=2)}")
+    if err.get("is_transient"):
+        print("  This error is marked transient, but ad creation is not idempotent, so it is")
+        print(f"  not retried. Check the ad set for '{ad_name}' first, then re-run if absent.")
     return None

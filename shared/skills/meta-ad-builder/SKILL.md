@@ -131,7 +131,7 @@ python scripts/deploy-ad.py \
 - **Video processing is async.** `deploy-ad.py` polls the uploaded video until
   Meta finishes processing before creating the ad — a video deploy can take a
   few minutes. See [deploy-patterns.md](reference/deploy-patterns.md).
-- **Transient `OAuthException` (code 2).** Retried automatically with backoff.
+- **Transient `OAuthException` (code 2).** **Not** retried automatically. Ad creation has no idempotency key, and Meta can return a transient error after the ad was already created, so an auto-retry would silently duplicate ads. On this error, check the ad set in Ads Manager for an ad with the printed name, then re-run only if it is absent.
 - **`act_` prefix** is added automatically if missing from `META_AD_ACCOUNT_ID`.
 - **Account-specific data stays out of git.** All output routes through
   `outputs/` (gitignored): ad IDs, pulled spend/revenue, competitor data.

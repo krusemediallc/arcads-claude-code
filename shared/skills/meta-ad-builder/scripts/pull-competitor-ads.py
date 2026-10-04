@@ -42,15 +42,16 @@ def resolve_page_id(identifier, token):
     if identifier.isdigit():
         return identifier
     resp = requests.get(f"{meta_api.BASE_URL}/{identifier}",
-                        params={"access_token": token, "fields": "id"}, timeout=15)
+                        headers=meta_api.auth_headers(),
+                        params={"fields": "id"}, timeout=15)
     data = resp.json()
     return str(data["id"]) if "error" not in data and data.get("id") else None
 
 
 def resolve_via_search(identifier, token, countries, date_min, date_max):
     """Fallback: find the page_id by searching the Ad Library for the name."""
-    resp = requests.get(f"{meta_api.BASE_URL}/ads_archive", params={
-        "access_token": token,
+    resp = requests.get(f"{meta_api.BASE_URL}/ads_archive",
+                        headers=meta_api.auth_headers(), params={
         "search_terms": identifier,
         "ad_reached_countries": countries,
         "ad_delivery_date_min": date_min,
@@ -79,7 +80,6 @@ def resolve_via_search(identifier, token, countries, date_min, date_max):
 def fetch_ads_archive(page_id, token, countries, date_min, date_max,
                       limit, sort_by, active_status, media_type):
     params = {
-        "access_token": token,
         "search_page_ids": page_id,
         "ad_reached_countries": countries,
         "ad_delivery_date_min": date_min,
@@ -94,7 +94,7 @@ def fetch_ads_archive(page_id, token, countries, date_min, date_max,
     url = f"{meta_api.BASE_URL}/ads_archive"
     all_ads, seen = [], set()
     while True:
-        resp = requests.get(url, params=params, timeout=30)
+        resp = requests.get(url, headers=meta_api.auth_headers(), params=params, timeout=30)
         if resp.status_code == 429:
             wait = int(resp.headers.get("Retry-After", 60))
             print(f"  Rate limited. Waiting {wait}s...")
@@ -180,6 +180,8 @@ def main():
     total = sum(p["ad_count"] for p in report["pages"])
     print(f"\nSaved {total} ads across {len(report['pages'])} page(s) → {out_file}")
     print("Open each ad's ad_snapshot_url in a browser to view the creative.")
+    print("NOTE: Meta's snapshot URLs carry an access token, so treat this file as a")
+    print(f"      secret. It lives under {out_dir} (gitignored) - do not share it.")
 
 
 if __name__ == "__main__":

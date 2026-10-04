@@ -38,26 +38,68 @@ post_one() {
     --arg prompt "$prompt" --arg aspectRatio "$ASPECT" --argjson refs "$refs_json" \
     '{model:$model, productId:$productId, projectId:$projectId, prompt:$prompt, aspectRatio:$aspectRatio} + (if ($refs|length)>0 then {referenceImages:$refs} else {} end)')
 
-  local resp
-  resp=$(curl -sS -H "$AUTH_HDR" -H "Content-Type: application/json" \
-    -X POST "$BASE/v2/images/generate" -d "$body")
-  echo "$resp" > "$OUT_DIR/$slot.json"
-  local id; id=$(echo "$resp" | jq -r '.id // empty')
-  local status; status=$(echo "$resp" | jq -r '.status // empty')
+  # curl -sS alone exits 0 on HTTP 4xx/5xx, so capture the status code too and
+  # treat "no asset id" as failure. Otherwise a rejected batch looks successful.
+  local raw rc=0
+  raw=$(curl -sS -w $'\n%{http_code}' -H "$AUTH_HDR" -H "Content-Type: application/json" \
+    -X POST "$BASE/v2/images/generate" -d "$body") || rc=$?
+  local http_code="" resp=""
+  if [[ -n "$raw" ]]; then
+    http_code=$(printf %s "$raw" | tail -n 1)
+    resp=$(printf %s "$raw" | sed '$d')
+  fi
+  printf %s "$resp" > "$OUT_DIR/$slot.json"
+
+  if (( rc != 0 )); then
+    echo "[$slot] FAILED: curl exit $rc (network/DNS/TLS). Nothing billed for this slot." >&2
+    return 1
+  fi
+  if [[ ! "$http_code" =~ ^2 ]]; then
+    local msg; msg=$(printf %s "$resp" | jq -r '.message // .error // empty' 2>/dev/null | head -c 200)
+    echo "[$slot] FAILED: HTTP $http_code${msg:+ - $msg}" >&2
+    return 1
+  fi
+  local id; id=$(printf %s "$resp" | jq -r '.id // empty')
+  if [[ -z "$id" ]]; then
+    echo "[$slot] FAILED: HTTP $http_code but no asset id (see $OUT_DIR/$slot.json)." >&2
+    return 1
+  fi
+  local status; status=$(printf %s "$resp" | jq -r '.status // empty')
   echo "[$slot] id=$id status=$status"
 }
 
 export -f post_one
 export BASE AUTH_HDR PRODUCT_ID PROJECT_ID MODEL ASPECT OUT_DIR
 
+# Cap concurrent billable calls. Override with MAX_PARALLEL=N.
+MAX_PARALLEL="${MAX_PARALLEL:-5}"
+OK=0; FAILED=0; TOTAL=0
 PIDS=()
+
+drain() {
+  local pid
+  if (( ${#PIDS[@]} )); then
+    for pid in "${PIDS[@]}"; do
+      if wait "$pid"; then OK=$((OK + 1)); else FAILED=$((FAILED + 1)); fi
+    done
+  fi
+  PIDS=()
+}
+
 while IFS=$'\n' read -r line; do
   [[ -z "$line" || "$line" =~ ^# ]] && continue
   slot="${line%%::*}"; rest="${line#*::}"
   prompt="${rest%%::*}"; refs="${rest#*::}"
+  TOTAL=$((TOTAL + 1))
   post_one "$slot" "$prompt" "$refs" &
   PIDS+=($!)
+  if (( ${#PIDS[@]} >= MAX_PARALLEL )); then drain; fi
 done
-for pid in "${PIDS[@]}"; do wait "$pid"; done
+drain
 
-echo "=== Issued ${#PIDS[@]} stills. Now run poll-and-download.sh with the returned IDs. ==="
+echo "=== Stills: $OK succeeded, $FAILED failed, of $TOTAL requested (max $MAX_PARALLEL in flight). ==="
+if (( FAILED > 0 )); then
+  echo "    $FAILED slot(s) never started. Responses in $OUT_DIR/. Re-run only the failed slots." >&2
+  exit 1
+fi
+echo "Now run poll-and-download.sh with the returned IDs."
