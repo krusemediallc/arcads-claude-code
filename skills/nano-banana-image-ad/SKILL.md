@@ -1,16 +1,16 @@
 ---
 name: nano-banana-image-ad
 description: >-
-  Generate one or more standalone Meta image-ad creatives via Nano Banana 2 / Nano Banana Pro (Gemini Flash Image family) through the Arcads external API. Locks the model family, auto-strips platform chrome, enforces edge-safe layouts. Use when the user asks for a "Nano Banana ad", "Gemini image ad", "nano-banana-2 ad creative", "make a static image ad with Gemini", or anchors on a need for photoreal / lifestyle / multi-reference / handheld-object / clay-texture ad creatives (sticky-note flatlays, held-whiteboard signs, lifestyle portraits, ingredient collages, OOH photography). Does NOT trigger on ChatGPT Image cues — use chatgpt-image-ad for those.
+  Generate one or more standalone Meta image-ad creatives via Nano Banana 2 / Nano Banana Pro (Gemini Flash Image family) through Arcads or the optional Atlas Cloud provider. Locks the model family, auto-strips platform chrome, enforces edge-safe layouts. Use when the user asks for a "Nano Banana ad", "Gemini image ad", "nano-banana-2 ad creative", "make a static image ad with Gemini", or anchors on a need for photoreal / lifestyle / multi-reference / handheld-object / clay-texture ad creatives (sticky-note flatlays, held-whiteboard signs, lifestyle portraits, ingredient collages, OOH photography). Does NOT trigger on ChatGPT Image cues — use chatgpt-image-ad for those.
 ---
 
-# nano-banana-image-ad (Arcads)
+# nano-banana-image-ad (Arcads or Atlas Cloud)
 
-Generate one or more **standalone Meta ad image creatives** via Arcads' `POST /v2/images/generate` with the Nano Banana model family (default `nano-banana-2`). Hands the image paths off to your Meta-ad-builder skill — this skill does not upload to Meta itself.
+Generate one or more **standalone Meta ad image creatives** with the Nano Banana model family (default `nano-banana-2`). Arcads remains the default provider; Atlas Cloud is an explicit opt-in. Hands the image paths off to your Meta-ad-builder skill — this skill does not upload to Meta itself.
 
 ## Read order
 
-1. **This file** — Arcads-specific endpoint, auth, presigned upload flow, workflow phases.
+1. **This file** — provider endpoints, auth, upload flow, and workflow phases.
 2. **[shared/skills/nano-banana-image-ad/prompting/guide.md](../../shared/skills/nano-banana-image-ad/prompting/guide.md)** — model-specific prompting (what Nano Banana is good/bad at, when to switch to gpt-image-2).
 3. **[shared/skills/image-ad-prompting/prompting/prompt-library.md](../../shared/skills/image-ad-prompting/prompting/prompt-library.md)** — 30+ validated templates with per-model notes.
 4. **[shared/skills/image-ad-prompting/prompting/safety-suffixes.md](../../shared/skills/image-ad-prompting/prompting/safety-suffixes.md)** — the 3 always-on guards.
@@ -21,13 +21,14 @@ Generate one or more **standalone Meta ad image creatives** via Arcads' `POST /v
 1. **Model is in the Nano Banana family.** The script accepts `nano-banana-2` (default), `nano-banana-pro` (Gemini 3 Pro Image, higher cost / locked identity), `nano-banana-edit` (inpaint-focused), or `nano-banana` (legacy). Anything else is refused. If the user asks for gpt-image-2, point them at `chatgpt-image-ad`.
 2. **No platform/screenshot chrome in output.** `NO_CHROME_SUFFIX` is always on (override only with `--allow-chrome`).
 3. **Edge-safe + glyph-safety suffixes always on** unless `--no-safe-zone` is explicit.
-4. **Max 14 reference images.** Hard Arcads cap for Nano Banana. Script enforces.
+4. **Max 14 reference images.** Both supported provider paths enforce this Nano Banana cap.
 5. **No Meta upload from this skill.** Image generation only. The user has a separate ad-builder skill in their stack — hand off via filesystem paths.
-6. **Always present a credit-cost estimate before generating.** Each Nano Banana call is one image; multiply by `--n`. `nano-banana-pro` costs more than `nano-banana-2` — surface the per-model rate from `logs/arcads-api.jsonl`.
+6. **Always present a credit-cost estimate before generating.** Each Nano Banana call is one image; multiply by `--n`. `nano-banana-pro` costs more than `nano-banana-2` — use `logs/arcads-api.jsonl` for Arcads or the current model catalog for Atlas Cloud.
 
 ## Prerequisites
 
-- `.env` containing `ARCADS_BASIC_AUTH` (preferred) OR `ARCADS_API_KEY`
+- Arcads: `.env` containing `ARCADS_BASIC_AUTH` (preferred) or `ARCADS_API_KEY`
+- Atlas Cloud: `ATLASCLOUD_API_KEY` in `.env` or the shell environment
 - Optional: `PRODUCT_ID`, `PROJECT_ID` in `.env` for session-folder organization
 - Reference images on local disk. The script handles the Arcads presigned-upload flow internally.
 
@@ -37,6 +38,15 @@ Generate one or more **standalone Meta ad image creatives** via Arcads' `POST /v
 - **Auth:** HTTP Basic. The script prefers a pre-encoded `ARCADS_BASIC_AUTH`; falls back to encoding `ARCADS_API_KEY`.
 - **Endpoint:** `POST /v2/images/generate`; poll `GET /v1/assets/{id}` until `status: generated`.
 - **Reference uploads:** `POST /v1/file-upload/get-presigned-url` returns `{presignedUrl, filePath}`; `PUT` bytes to `presignedUrl`; pass the `filePath` in `referenceImages`. Single-use — re-uploaded fresh per variant by the script.
+
+### Atlas Cloud (optional)
+
+- **Enable:** pass `--provider atlas`. Omitting `--provider` keeps the existing Arcads behavior.
+- **Base URL:** `https://api.atlascloud.ai/api/v1` (or `ATLASCLOUD_BASE_URL`).
+- **Auth:** `Authorization: Bearer $ATLASCLOUD_API_KEY`.
+- **Models:** the CLI aliases map to `google/nano-banana-2`, `google/nano-banana-pro`, or `google/nano-banana`. Text-only runs use `/text-to-image`; runs with a source or reference image use `/edit`.
+- **Reference uploads:** local images are uploaded temporarily through `POST /model/uploadMedia` and their URLs are sent in the model's `images` field. This sends the files to Atlas Cloud; do not use the upload endpoint as permanent storage.
+- **Execution:** submit once with `POST /model/generateImage`, then poll `GET /model/prediction/{id}`. The paid generation POST is never retried automatically; transient prediction GETs have a bounded three-attempt retry.
 
 ## Generation modes
 
@@ -62,9 +72,9 @@ Ask the user which variant they want **before the first generation in a session*
 
 ### Phase 1: Preflight
 
-1. `.env` exists with credentials.
+1. The selected provider credential exists. Arcads uses `.env`; Atlas Cloud accepts `.env` or `ATLASCLOUD_API_KEY` from the shell.
 2. (Optional) `arcads-external-api` session folder set up.
-3. Health-check: `curl -sf -H "$AUTH" "$BASE_URL/v1/products"` returns 200.
+3. Health-check the selected provider without submitting a generation. For Arcads, `curl -sf -H "$AUTH" "$BASE_URL/v1/products"` must return 200; for Atlas Cloud, verify the model appears in the current model catalog.
 
 ### Phase 2: Gather inputs
 
@@ -80,7 +90,7 @@ For fresh prompts (no template match), follow the structure in [shared/skills/na
 
 ### Phase 4: Credit cost confirmation (MANDATORY)
 
-Present the estimated credit cost (read from `logs/arcads-api.jsonl` for matching past calls). Surface the model variant prominently: `nano-banana-pro` costs more than `nano-banana-2`. Wait for explicit confirmation.
+Present the estimated credit cost. For Arcads, read matching past calls from `logs/arcads-api.jsonl`; for Atlas Cloud, check the current model catalog before the run. Surface the provider and model variant prominently: `nano-banana-pro` costs more than `nano-banana-2`. Wait for explicit confirmation.
 
 ### Phase 5: Generate
 
@@ -115,9 +125,19 @@ Present the estimated credit cost (read from `logs/arcads-api.jsonl` for matchin
   --n <N> \
   --out ./generated \
   --env-file .env
+
+# Optional Atlas Cloud provider (Arcads remains the default):
+~/.claude/skills/nano-banana-image-ad/scripts/generate_image.py \
+  --provider atlas \
+  --model nano-banana-2 \
+  --prompt "<rewritten>" \
+  --aspect-ratio <ratio> \
+  --n <N> \
+  [--image-ref <product.png>] \
+  --out ./generated
 ```
 
-Each line on stdout is one JSON variant (`variant`, `path`, `asset_id`, `width`, `height`, `prompt`, `mode`, `aspect_ratio`, `model`).
+Each line on stdout is one JSON variant (`variant`, `path`, `asset_id`, `width`, `height`, `prompt`, `mode`, `aspect_ratio`, `model`, `provider`).
 
 Log each call to `logs/arcads-api.jsonl` with the model variant, ref count, and returned `asset_id`s.
 
@@ -149,14 +169,14 @@ Optionally, write the selected paths to `./generated/run-<ts>.jsonl` for downstr
 
 ## Common errors
 
-- **401/403** → fix `.env`.
+- **401/403** → verify the selected provider credential.
 - **422 validation/moderation** → tighten prompt; check `aspectRatio` is in supported set; check `--n` ≤ 5.
 - **500 UNKNOWN_ERROR** → usually a stale presigned filePath. The script re-uploads per variant; if persistent, file an issue with the `asset_id`.
 
 ## Files this skill owns
 
 - `~/.claude/skills/nano-banana-image-ad/SKILL.md` — this file
-- `~/.claude/skills/nano-banana-image-ad/scripts/generate_image.py` — Arcads Nano Banana caller
+- `~/.claude/skills/nano-banana-image-ad/scripts/generate_image.py` — Arcads and Atlas Cloud Nano Banana caller
 
 ## See also
 
