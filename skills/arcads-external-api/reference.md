@@ -2,6 +2,7 @@
 
 Official Swagger UI: [https://external-api.arcads.ai/docs](https://external-api.arcads.ai/docs)  
 OpenAPI JSON (machine-readable): `GET https://external-api.arcads.ai/docs-json`
+Local snapshot of the full spec (86 endpoints, 2026-10-21): [openapi.json](openapi.json) / [openapi.yaml](openapi.yaml) — check it for any endpoint or DTO not covered below.
 
 ## Base URL
 
